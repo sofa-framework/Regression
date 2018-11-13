@@ -37,9 +37,10 @@
 #include <SofaExporter/WriteState.h>
 #include <SofaGeneralLoader/ReadState.h>
 #include <SofaSimulationGraph/DAGSimulation.h>
+#include <SofaSimulationGraph/testing/BaseSimulationTest.h>
+using sofa::helper::testing::BaseSimulationTest;
 #include <SofaValidation/CompareState.h>
 
-#include <SofaTest/Sofa_test.h>
 #include <sofa/helper/system/FileRepository.h>
 
 using sofa::helper::testing::BaseTest;
@@ -81,7 +82,7 @@ static struct RegressionStateScenes_list : public RegressionScene_list
 {
     RegressionStateScenes_list()
     {
-        collectScenesFromPaths("list.txt");
+        collectScenesFromPaths("RegressionStateScenes");
     }
 } regressionState_tests;
 

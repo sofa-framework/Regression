@@ -98,7 +98,7 @@ void RegressionScene_test::runRegressionStateTest(RegressionSceneTest_Data data)
 
 /// performing the regression test on every plugins/projects
 
-INSTANTIATE_TEST_CASE_P(regression,
+INSTANTIATE_TEST_CASE_P(Regression,
     RegressionScene_test,
     ::testing::ValuesIn(regressionState_tests.m_listScenes),
     RegressionScene_test::getTestName);

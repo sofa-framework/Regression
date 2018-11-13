@@ -24,11 +24,13 @@
 
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
+using sofa::helper::system::FileSystem;
+#include <sofa/helper/Utils.h>
+using sofa::helper::Utils;
 
 #include <sofa/helper/testing/BaseTest.h>
 
 #include <fstream>
-#include <SofaTest/Sofa_test.h>
 
 namespace sofa 
 {
@@ -61,54 +63,69 @@ public:
     /// name of the file list 
     std::string m_listFilename;
 
+    std::string m_sofaSrcDir;
+    std::string m_referencesDir;
+
     /// List of regression Data to perform @sa RegressionSceneTest_Data
     std::vector<RegressionSceneTest_Data> m_listScenes;
 
+    RegressionScene_list()
+    {
+        char* sofaDirVar = getenv("SOFA_SRC_DIR");
+        if (sofaDirVar == NULL || !FileSystem::exists(sofaDirVar))
+        {
+            msg_error("RegressionScene_test") << "env var SOFA_SRC_DIR must be defined";
+        }
+        m_sofaSrcDir = std::string(sofaDirVar);
+
+        char* refDirVar = getenv("REFERENCES_DIR");
+        if (refDirVar == NULL || !FileSystem::exists(refDirVar))
+        {
+            msg_error("RegressionScene_test") << "env var REFERENCES_DIR must be defined";
+        }
+        m_referencesDir = std::string(refDirVar);
+    }
+
 protected:
     /// Method called by collectScenesFromDir to search specific regression file list inside a directory
-    void collectScenesFromList(const std::string& testDir)
+    void collectScenesFromList(const std::string& listFile)
     {
         // lire plugin_test/regression_scene_list -> (file,nb time steps,epsilon)
         // pour toutes les scenes
+        const std::string listDir = FileSystem::getParentDirectory(listFile);
+        msg_info("Regression_test") << "Parsing " << listFile;
 
-        const std::string regression_scene_list = testDir + "/" + m_listFilename;
-
-        if (helper::system::FileSystem::exists(regression_scene_list) && !helper::system::FileSystem::isDirectory(regression_scene_list))
+        // parser le fichier -> (file,nb time steps,epsilon)
+        std::ifstream iniFileStream(listFile.c_str());
+        while (!iniFileStream.eof())
         {
-            msg_info("Regression_test") << "Parsing " << regression_scene_list;
+            std::string line;
+            std::string scene;
+            unsigned int steps;
+            double epsilon;
 
-            // parser le fichier -> (file,nb time steps,epsilon)
-            std::ifstream iniFileStream(regression_scene_list.c_str());
-            while (!iniFileStream.eof())
-            {
-                std::string line;
-                std::string scene;
-                unsigned int steps;
-                double epsilon;
+            getline(iniFileStream, line);
+            std::istringstream lineStream(line);
+            lineStream >> scene;
+            lineStream >> steps;
+            lineStream >> epsilon;
 
-                getline(iniFileStream, line);
-                std::istringstream lineStream(line);
-                lineStream >> scene;
-                lineStream >> steps;
-                lineStream >> epsilon;
-
-                scene = std::string(SOFA_SRC_DIR) + "/" + scene;
-                std::string reference = testDir + "/" + getFileName(scene) + ".reference";
+            scene = listDir + "/" + scene;
+            std::string reference = getFileName(scene) + ".reference";
 
 #ifdef WIN32
-                // Minimize absolute scene path to avoid MAX_PATH problem
-                if (scene.length() > MAX_PATH)
-                {
-                    ADD_FAILURE() << scene << ": path is longer than " << MAX_PATH;
-                    continue;
-                }
-                char buffer[MAX_PATH];
-                GetFullPathNameA(scene.c_str(), MAX_PATH, buffer, nullptr);
-                scene = std::string(buffer);
-                std::replace(scene.begin(), scene.end(), '\\', '/');
-#endif // WIN32
-                m_listScenes.push_back(RegressionSceneTest_Data(scene, reference, steps, epsilon));
+            // Minimize absolute scene path to avoid MAX_PATH problem
+            if (scene.length() > MAX_PATH)
+            {
+                ADD_FAILURE() << scene << ": path is longer than " << MAX_PATH;
+                continue;
             }
+            char buffer[MAX_PATH];
+            GetFullPathNameA(scene.c_str(), MAX_PATH, buffer, nullptr);
+            scene = std::string(buffer);
+            std::replace(scene.begin(), scene.end(), '\\', '/');
+#endif // WIN32
+            m_listScenes.push_back(RegressionSceneTest_Data(scene, reference, steps, epsilon));
         }
     }
 
@@ -116,19 +133,18 @@ protected:
     /// Method called by @sa collectScenesFromPaths to loop on the subdirectories to find regression file list
     void collectScenesFromDir(const std::string& directory)
     {
-        // pour tous plugins/projets
-        std::vector<std::string> dirContents;
-        helper::system::FileSystem::listDirectory(directory, dirContents);
-
-        for (const std::string& dirContent : dirContents)
+        std::vector<std::string> regressionListFiles;
+        bool error = helper::system::FileSystem::findFiles(directory, regressionListFiles, ".regression-tests", 5);
+        if(error)
         {
-            if (helper::system::FileSystem::isDirectory(directory + "/" + dirContent))
+            msg_error("collectScenesFromDir") << "findFiles failed";
+        }
+
+        for (const std::string& regressionListFile : regressionListFiles)
+        {
+            if ( helper::system::FileSystem::exists(regressionListFile) && helper::system::FileSystem::isFile(regressionListFile) )
             {
-                const std::string testDir = directory + "/" + dirContent + "/" + dirContent + "_test/regression";
-                if (helper::system::FileSystem::exists(testDir) && helper::system::FileSystem::isDirectory(testDir))
-                {
-                    collectScenesFromList(testDir);
-                }
+                collectScenesFromList(regressionListFile);
             }
         }
     }
@@ -139,34 +155,9 @@ protected:
     {
         m_listFilename = listFilename;
 
-        static const std::string regressionsDir = std::string(SOFA_SRC_DIR) + "/applications";
-        if (helper::system::FileSystem::exists(regressionsDir))
-            collectScenesFromDir(regressionsDir);
-
-        static const std::string pluginsDir = std::string(SOFA_SRC_DIR) + "/applications/plugins";
-        if (helper::system::FileSystem::exists(pluginsDir))
-            collectScenesFromDir(pluginsDir);
-
-        static const std::string devPluginsDir = std::string(SOFA_SRC_DIR) + "/applications-dev/plugins";
-        if (helper::system::FileSystem::exists(devPluginsDir))
-            collectScenesFromDir(devPluginsDir);
-
-        static const std::string projectsDir = std::string(SOFA_SRC_DIR) + "/applications/projects";
-        if (helper::system::FileSystem::exists(projectsDir))
-            collectScenesFromDir(projectsDir);
-
-        static const std::string devProjectsDir = std::string(SOFA_SRC_DIR) + "/applications-dev/projects";
-        if (helper::system::FileSystem::exists(devProjectsDir))
-            collectScenesFromDir(devProjectsDir);
-
-        static const std::string modulesDir = std::string(SOFA_SRC_DIR) + "/modules";
-        if (helper::system::FileSystem::exists(modulesDir))
-            collectScenesFromDir(modulesDir);
-
-        static const std::string kernelModulesDir = std::string(SOFA_SRC_DIR) + "/SofaKernel/modules";
-        if (helper::system::FileSystem::exists(kernelModulesDir))
-            collectScenesFromDir(kernelModulesDir);
+        collectScenesFromDir(m_sofaSrcDir); // m_sofaSrcDir should be an input to the test (not an env var)
     }
+
 
     std::string getFileName(const std::string& s)
     {
