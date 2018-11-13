@@ -8,10 +8,10 @@ find_package(SofaGTestMain)
 
 set(HEADER_FILES
     RegressionScene_list.h
-    RegressionScene_test.h
 )
 
 set(SOURCE_FILES
+    RegressionScene_list.cpp
     RegressionScene_test.cpp
 )
 
