@@ -1,9 +1,9 @@
 #include "RegressionSceneList.h"
 
-#include <sofa/helper/testing/BaseTest.h>
-using sofa::helper::testing::BaseTest;
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
+#include <sofa/helper/testing/BaseTest.h>
+using sofa::helper::testing::BaseTest;
 
 #include <SofaComponentBase/initComponentBase.h>
 #include <SofaComponentCommon/initComponentCommon.h>
@@ -40,11 +40,11 @@ namespace sofa
 ///
 /// @author Matthieu Nesme
 /// @date 2015
-class Regression_test: public BaseSimulationTest, public ::testing::WithParamInterface<RegressionTestData>
+class Regression_test: public BaseSimulationTest, public ::testing::WithParamInterface<RegressionSceneData>
 {
 public:
     /// Method that given the RegressionSceneTest_Data will return the name of the file tested without the path neither the extension
-    static std::string getTestName(const testing::TestParamInfo<RegressionTestData>& p)
+    static std::string getTestName(const testing::TestParamInfo<RegressionSceneData>& p)
     {
         const std::string& path = p.param.m_fileScenePath;
         std::size_t pos = path.find_last_of("/"); // get name of the file without path
@@ -59,9 +59,9 @@ public:
     }
 
     /// Method to really perfom the test and compare the states vector between current simulation and reference file.
-    void runRegressionStateTest(RegressionTestData data)
+    void runStateRegressionTest(RegressionSceneData data)
     {
-        msg_info("Regression_test") << "  Testing " << data.m_fileScenePath;
+        msg_info("Regression_test::runStateRegressionTest") << "Testing" << data.m_fileScenePath;
 
         sofa::component::initComponentBase();
         sofa::component::initComponentCommon();
@@ -94,7 +94,7 @@ public:
         }
         else // create reference
         {
-            msg_warning("Regression_test") << "Non existing reference created: " << data.m_fileRefPath;
+            msg_warning("Regression_test::runStateRegressionTest") << "Non existing reference created: " << data.m_fileRefPath;
 
             // just to create an empty file to know it is already init
             std::ofstream filestream(data.m_fileRefPath.c_str());
@@ -124,7 +124,8 @@ public:
             double errorByDof = result.getErrorByDof() / double(result.getNumCompareState());
             if (errorByDof > data.m_epsilon)
             {
-                msg_error("Regression_test") << data.m_fileScenePath << ":" << msgendl
+                msg_error("Regression_test::runStateRegressionTest")
+                    << data.m_fileScenePath << ":" << msgendl
                     << "    TOTALERROR: " << result.getTotalError() << msgendl
                     << "    ERRORBYDOF: " << errorByDof;
             }
@@ -137,27 +138,24 @@ public:
 };
 
 
-/// Structure creating and storing the RegressionSceneTest_Data from Sofa src paths as a list for gtest
-static struct RegressionStateSceneList : public RegressionSceneList
+/// Structure creating and storing the RegressionSceneData from Sofa src paths as a list for gtest
+static struct StateRegressionSceneList : public RegressionSceneList
 {
-    RegressionStateSceneList()
+    StateRegressionSceneList()
     {
-        collectScenesFromPaths("RegressionStateScenes");
+        collectScenesFromPaths("StateRegressionSceneList.regression-tests");
     }
-} regressionStateSceneList;
+} stateRegressionSceneList;
 
-
-
-// performing the regression test on every plugins/projects
-
+// Create one GTest per scene in stateRegressionSceneList.m_scenes
 INSTANTIATE_TEST_CASE_P(Regression,
     Regression_test,
-    ::testing::ValuesIn( regressionStateSceneList.m_scenes ),
+    ::testing::ValuesIn( stateRegressionSceneList.m_scenes ),
     Regression_test::getTestName);
-
-TEST_P(Regression_test, states)
+// Run state regression test on these scenes
+TEST_P(Regression_test, runStateRegressionTest)
 {
-    runRegressionStateTest(GetParam());
+    runStateRegressionTest(GetParam());
 }
 
 

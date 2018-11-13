@@ -24,9 +24,6 @@
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
 using sofa::helper::system::FileSystem;
-#include <sofa/helper/Utils.h>
-using sofa::helper::Utils;
-
 #include <sofa/helper/testing/BaseTest.h>
 
 #include <fstream>
@@ -102,15 +99,15 @@ void RegressionSceneList::collectScenesFromList(const std::string& listFile)
         scene = std::string(buffer);
         std::replace(scene.begin(), scene.end(), '\\', '/');
 #endif // WIN32
-        m_scenes.push_back(RegressionTestData(scene, reference, steps, epsilon));
+        m_scenes.push_back(RegressionSceneData(scene, reference, steps, epsilon));
     }
 }
 
 
-void RegressionSceneList::collectScenesFromDir(const std::string& directory)
+void RegressionSceneList::collectScenesFromDir(const std::string& directory, const std::string& listFilename)
 {
     std::vector<std::string> regressionListFiles;
-    bool error = helper::system::FileSystem::findFiles(directory, regressionListFiles, ".regression-tests", 5);
+    bool error = helper::system::FileSystem::findFiles(directory, regressionListFiles, listFilename, 5);
     if(error)
     {
         msg_error("RegressionSceneList") << "findFiles failed";
@@ -128,9 +125,7 @@ void RegressionSceneList::collectScenesFromDir(const std::string& directory)
 
 void RegressionSceneList::collectScenesFromPaths(const std::string& listFilename)
 {
-    m_listFilename = listFilename;
-
-    collectScenesFromDir(m_scenesDir); // m_sofaSrcDir should be an input to the test (not an env var)
+    collectScenesFromDir(m_scenesDir, listFilename); // m_sofaSrcDir should be an input to the test (not an env var)
 }
 
 } // namespace sofa

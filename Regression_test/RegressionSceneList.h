@@ -22,23 +22,16 @@
 #ifndef SOFA_RegressionScene_list_H
 #define SOFA_RegressionScene_list_H
 
-#include <sofa/helper/system/FileRepository.h>
-#include <sofa/helper/system/FileSystem.h>
-using sofa::helper::system::FileSystem;
-#include <sofa/helper/Utils.h>
-using sofa::helper::Utils;
-
-#include <sofa/helper/testing/BaseTest.h>
-
-#include <fstream>
+#include <string>
+#include <vector>
 
 namespace sofa 
 {
 
 /// a struct to store all info to perform the regression test
-struct RegressionTestData
+struct RegressionSceneData
 {
-    RegressionTestData(const std::string& fileScenePath, const std::string& fileRefPath, unsigned int steps, double epsilon)
+    RegressionSceneData(const std::string& fileScenePath, const std::string& fileRefPath, unsigned int steps, double epsilon)
         : m_fileScenePath(fileScenePath)
         , m_fileRefPath(fileRefPath)
         , m_steps(steps)
@@ -61,14 +54,11 @@ struct RegressionTestData
 class RegressionSceneList
 {
 public:
-    /// name of the file list 
-    std::string m_listFilename;
-
     std::string m_scenesDir;
     std::string m_referencesDir;
 
     /// List of regression Data to perform @sa RegressionSceneTest_Data
-    std::vector<RegressionTestData> m_scenes;
+    std::vector<RegressionSceneData> m_scenes;
 
     RegressionSceneList();
 
@@ -77,7 +67,7 @@ protected:
     void collectScenesFromList(const std::string& listFile);
 
     /// Method called by @sa collectScenesFromPaths to loop on the subdirectories to find regression file list
-    void collectScenesFromDir(const std::string& directory);
+    void collectScenesFromDir(const std::string& directory, const std::string &listFilename);
 
     /// Main method to start the parsing of regression file list on specific Sofa src paths
     virtual void collectScenesFromPaths(const std::string& listFilename);
