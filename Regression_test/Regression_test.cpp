@@ -1,4 +1,4 @@
-#include "RegressionScene_list.h"
+#include "RegressionSceneList.h"
 
 #include <sofa/helper/testing/BaseTest.h>
 using sofa::helper::testing::BaseTest;

@@ -7,12 +7,12 @@ find_package(SofaMisc) # to include all SOFA
 find_package(SofaGTestMain)
 
 set(HEADER_FILES
-    RegressionScene_list.h
+    RegressionSceneList.h
 )
 
 set(SOURCE_FILES
-    RegressionScene_list.cpp
-    RegressionScene_test.cpp
+    RegressionSceneList.cpp
+    Regression_test.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
