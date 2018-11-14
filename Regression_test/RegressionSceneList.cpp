@@ -28,41 +28,26 @@ using sofa::helper::system::FileSystem;
 
 #include <fstream>
 
-namespace sofa 
+namespace sofa
 {
-
-std::string getFileName(const std::string& s)
-{
-    char sep = '/';
-
-    size_t i = s.rfind(sep, s.length());
-    if (i != std::string::npos)
-    {
-        return(s.substr(i + 1, s.length() - i));
-    }
-
-    return s;
-}
-
 
 RegressionSceneList::RegressionSceneList()
 {
     char* scenesDirVar = getenv("REGRESSION_SCENES_DIR");
-    if (scenesDirVar == NULL || !FileSystem::exists(scenesDirVar))
+    if (scenesDirVar != NULL && FileSystem::exists(scenesDirVar))
     {
-        msg_error("RegressionSceneList") << "env var REGRESSION_SCENES_DIR must be defined";
+        m_defaultScenesDir = std::string(scenesDirVar);
     }
-    m_scenesDir = std::string(scenesDirVar);
 
     char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
-    if (refDirVar == NULL || !FileSystem::exists(refDirVar))
+    if (refDirVar != NULL && FileSystem::exists(refDirVar))
     {
-        msg_error("RegressionSceneList") << "env var REGRESSION_REFERENCES_DIR must be defined";
+        m_defaultReferencesDir = std::string(refDirVar);
     }
-    m_referencesDir = std::string(refDirVar);
 }
 
-void RegressionSceneList::collectScenesFromList(const std::string& listFile)
+
+void RegressionSceneList::collectScenesFromList(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFile)
 {
     // lire plugin_test/regression_scene_list -> (file,nb time steps,epsilon)
     // pour toutes les scenes
@@ -74,18 +59,20 @@ void RegressionSceneList::collectScenesFromList(const std::string& listFile)
     while (!iniFileStream.eof())
     {
         std::string line;
-        std::string scene;
+        std::string sceneFromList;
         unsigned int steps;
         double epsilon;
 
         getline(iniFileStream, line);
         std::istringstream lineStream(line);
-        lineStream >> scene;
+        lineStream >> sceneFromList;
         lineStream >> steps;
         lineStream >> epsilon;
 
-        scene = listDir + "/" + scene;
-        std::string reference = getFileName(scene) + ".reference";
+        std::string scene = listDir + "/" + sceneFromList;
+        std::string sceneFromScenesDir(scene);
+        sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
+        std::string reference = referencesDir + "/" + sceneFromScenesDir + ".reference";
 
 #ifdef WIN32
         // Minimize absolute scene path to avoid MAX_PATH problem
@@ -99,15 +86,15 @@ void RegressionSceneList::collectScenesFromList(const std::string& listFile)
         scene = std::string(buffer);
         std::replace(scene.begin(), scene.end(), '\\', '/');
 #endif // WIN32
-        m_scenes.push_back(RegressionSceneData(scene, reference, steps, epsilon));
+        m_scenes.push_back( RegressionSceneData(scene, reference, steps, epsilon) );
     }
 }
 
 
-void RegressionSceneList::collectScenesFromDir(const std::string& directory, const std::string& listFilename)
+void RegressionSceneList::collectScenesFromDir(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename)
 {
     std::vector<std::string> regressionListFiles;
-    bool error = helper::system::FileSystem::findFiles(directory, regressionListFiles, listFilename, 5);
+    bool error = helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
     if(error)
     {
         msg_error("RegressionSceneList") << "findFiles failed";
@@ -117,15 +104,15 @@ void RegressionSceneList::collectScenesFromDir(const std::string& directory, con
     {
         if ( helper::system::FileSystem::exists(regressionListFile) && helper::system::FileSystem::isFile(regressionListFile) )
         {
-            collectScenesFromList(regressionListFile);
+            collectScenesFromList(referencesDir, scenesDir, regressionListFile);
         }
     }
 }
 
 
-void RegressionSceneList::collectScenesFromPaths(const std::string& listFilename)
+void RegressionSceneList::collectScenesFromPaths(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename)
 {
-    collectScenesFromDir(m_scenesDir, listFilename); // m_sofaSrcDir should be an input to the test (not an env var)
+    collectScenesFromDir(referencesDir, scenesDir, listFilename); // m_sofaSrcDir should be an input to the test (not an env var)
 }
 
 } // namespace sofa

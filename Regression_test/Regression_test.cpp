@@ -61,7 +61,7 @@ public:
     /// Method to really perfom the test and compare the states vector between current simulation and reference file.
     void runStateRegressionTest(RegressionSceneData data)
     {
-        msg_info("Regression_test::runStateRegressionTest") << "Testing" << data.m_fileScenePath;
+        msg_info("Regression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
         sofa::component::initComponentBase();
         sofa::component::initComponentCommon();
@@ -143,9 +143,16 @@ static struct StateRegressionSceneList : public RegressionSceneList
 {
     StateRegressionSceneList()
     {
-        collectScenesFromPaths("StateRegressionSceneList.regression-tests");
+        if(!m_defaultScenesDir.empty() && !m_defaultReferencesDir.empty())
+        {
+            collectScenesFromPaths(m_defaultReferencesDir, m_defaultScenesDir, "RegressionStateScenes.regression-tests");
+        }
+        else
+        {
+            msg_error("StateRegressionSceneList") << "REGRESSION_SCENES_DIR and REGRESSION_REFERENCES_DIR env vars are required.";
+        }
     }
-} stateRegressionSceneList;
+} stateRegressionSceneList; // construction will fill m_scenes
 
 // Create one GTest per scene in stateRegressionSceneList.m_scenes
 INSTANTIATE_TEST_CASE_P(Regression,
