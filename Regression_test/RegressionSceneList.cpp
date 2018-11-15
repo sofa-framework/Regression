@@ -101,7 +101,7 @@ void RegressionSceneList::collectScenesFromDir(const std::string& referencesDir,
 {
     std::vector<std::string> regressionListFiles;
     bool error = helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
-    if(error)
+    if(error <= 0)
     {
         msg_error("RegressionSceneList") << "findFiles failed";
     }
