@@ -18,7 +18,6 @@ using sofa::helper::testing::BaseTest;
 using sofa::helper::testing::BaseSimulationTest;
 #include <SofaValidation/CompareState.h>
 
-
 namespace sofa 
 {
 
@@ -73,6 +72,14 @@ public:
 
         // Load the scene
         sofa::simulation::Node::SPtr root = simulation->load(data.m_fileScenePath.c_str());
+
+        // if no root node -> loading failed
+        if (root == NULL)
+        {
+            msg_error("Regression_test::runStateRegressionTest")
+                << data.m_fileScenePath << " could not be loaded." << msgendl;
+            return;
+        }
 
         simulation->init(root.get());
 

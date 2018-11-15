@@ -64,6 +64,10 @@ void RegressionSceneList::collectScenesFromList(const std::string& referencesDir
         double epsilon;
 
         getline(iniFileStream, line);
+
+        if (line.empty() || line[0] == '#')
+            continue;
+
         std::istringstream lineStream(line);
         lineStream >> sceneFromList;
         lineStream >> steps;
