@@ -92,7 +92,8 @@ public:
         {
             // Add CompareState components: as it derives from the ReadState, we use the ReadStateActivator to enable them.
             sofa::component::misc::CompareStateCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
-            //            compareVisitor.setCreateInMapping(true);
+
+            compareVisitor.setCreateInMapping(data.m_mecaInMapping);
             compareVisitor.setSceneName(data.m_fileRefPath);
             compareVisitor.execute(root.get());
 
@@ -109,7 +110,8 @@ public:
 
             initializing = true;
             sofa::component::misc::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
-            //            writeVisitor.setCreateInMapping(true);
+
+            writeVisitor.setCreateInMapping(data.m_mecaInMapping);
             writeVisitor.setSceneName(data.m_fileRefPath);
             writeVisitor.execute(root.get());
 
