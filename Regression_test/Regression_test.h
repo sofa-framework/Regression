@@ -54,8 +54,12 @@ public:
     /// return the name of the file being tested without path nor extension
     static std::string getTestName(const testing::TestParamInfo<RegressionSceneData>& p);
 
+    /// Generic method for the test that will run the scene for a given number of steps @sa RegressionSceneData.m_steps (default 100) and call
+    /// runTestImpl at each step.
+    void runTest(RegressionSceneData data);
+
     /// Method performing the specific test of non regression. To be overwritten by child class.
-    virtual void runTest(RegressionSceneData data) = 0;
+    virtual void runTestImpl(RegressionSceneData data, sofa::simulation::Node::SPtr root, bool createReference = false) = 0;
 };
 
 
@@ -63,11 +67,11 @@ public:
 class StateRegression_test : public BaseRegression_test
 {
 public:
-    /** Specific regression test on the states. The scene is run for a given number of steps @sa RegressionSceneData.m_steps (default 100)
+    /** Specific regression test on the states.
      * At each step, the state (position/velocity) of every independent dofs is compared to values in reference files.
      * If the mean difference per node exceed a @sa RegressionSceneData._epsilon threshold this will be reported as an error.
      */
-    void runTest(RegressionSceneData data);
+    void runTestImpl(RegressionSceneData data, sofa::simulation::Node::SPtr root, bool createReference = false);
 };
 
 /// Specification of @sa BaseRegression_test to perform topology structure comparisons
@@ -75,7 +79,7 @@ class TopologyRegression_test : public BaseRegression_test
 {
 public:
     /** Specific regression test on the topology. */
-    void runTest(RegressionSceneData data);
+    void runTestImpl(RegressionSceneData data, sofa::simulation::Node::SPtr root, bool createReference = false);
 };
 
 

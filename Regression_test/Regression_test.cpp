@@ -13,10 +13,15 @@ using sofa::helper::testing::BaseTest;
 
 #include <SofaExporter/WriteState.h>
 #include <SofaGeneralLoader/ReadState.h>
+
+#include <SofaGeneralLoader/ReadTopology.h>
+#include <SofaExporter/WriteTopology.h>
+
 #include <SofaSimulationGraph/DAGSimulation.h>
 
 using sofa::helper::testing::BaseSimulationTest;
 #include <SofaValidation/CompareState.h>
+#include <SofaValidation/CompareTopology.h>
 
 namespace sofa 
 {
@@ -37,9 +42,9 @@ std::string BaseRegression_test::getTestName(const testing::TestParamInfo<Regres
 
 
 
-void StateRegression_test::runTest(RegressionSceneData data)
+void BaseRegression_test::runTest(RegressionSceneData data)
 {
-    msg_info("Regression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
+    msg_info("BaseRegression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
     sofa::component::initComponentBase();
     sofa::component::initComponentCommon();
@@ -55,19 +60,28 @@ void StateRegression_test::runTest(RegressionSceneData data)
     // if no root node -> loading failed
     if (root == NULL)
     {
-        msg_error("Regression_test::runStateRegressionTest")
+        msg_error("BaseRegression_test::runStateRegressionTest")
             << data.m_fileScenePath << " could not be loaded." << msgendl;
         return;
     }
 
     simulation->init(root.get());
 
-    // TODO lancer visiteur pour dumper MO
-    // comparer ce dump avec le fichier sceneName.regressionreference
-
-    bool initializing = false;
-
+    // check if ref file exist will run and compare to references
     if (helper::system::FileSystem::exists(data.m_fileRefPath) && !helper::system::FileSystem::isDirectory(data.m_fileRefPath))
+        runTestImpl(data, root, false);
+    else // create reference
+        runTestImpl(data, root, true);
+
+    // Clear and prepare for next scene
+    simulation->unload(root.get());
+    root.reset();
+}
+
+
+void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Node::SPtr root, bool createReference)
+{
+    if (!createReference)
     {
         // Add CompareState components: as it derives from the ReadState, we use the ReadStateActivator to enable them.
         sofa::component::misc::CompareStateCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
@@ -81,13 +95,12 @@ void StateRegression_test::runTest(RegressionSceneData data)
     }
     else // create reference
     {
-        msg_warning("Regression_test::runStateRegressionTest") << "Non existing reference created: " << data.m_fileRefPath;
+        msg_warning("StateRegression_test::runTestImpl") << "Non existing reference created: " << data.m_fileRefPath;
 
         // just to create an empty file to know it is already init
         std::ofstream filestream(data.m_fileRefPath.c_str());
         filestream.close();
 
-        initializing = true;
         sofa::component::misc::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
 
         writeVisitor.setCreateInMapping(data.m_mecaInMapping);
@@ -98,12 +111,13 @@ void StateRegression_test::runTest(RegressionSceneData data)
         v_write.execute(root.get());
     }
 
+    simulation::Simulation* simulation = simulation::getSimulation();
     for (unsigned int i = 0; i<data.m_steps; ++i)
     {
         simulation->animate(root.get(), root->getDt());
     }
 
-    if (!initializing)
+    if (!createReference)
     {
         // Read the final error: the summation of all the error made at each time step
         sofa::component::misc::CompareStateResult result(sofa::core::ExecParams::defaultInstance());
@@ -112,23 +126,80 @@ void StateRegression_test::runTest(RegressionSceneData data)
         double errorByDof = result.getErrorByDof() / double(result.getNumCompareState());
         if (errorByDof > data.m_epsilon)
         {
-            msg_error("Regression_test::runStateRegressionTest")
+            msg_error("StateRegression_test::runTestImpl")
                 << data.m_fileScenePath << ":" << msgendl
                 << "    TOTALERROR: " << result.getTotalError() << msgendl
                 << "    ERRORBYDOF: " << errorByDof;
         }
     }
-
-    // Clear and prepare for next scene
-    simulation->unload(root.get());
-    root.reset();
 }
 
 
 
-void TopologyRegression_test::runTest(RegressionSceneData data)
+void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simulation::Node::SPtr root, bool createReference)
 {
+    if (!createReference)
+    {
+        //We add CompareTopology components: as it derives from the ReadTopology, we use the ReadTopologyActivator to enable them.
+        sofa::component::misc::CompareTopologyCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
+        compareVisitor.setCreateInMapping(data.m_mecaInMapping);
+        compareVisitor.setSceneName(data.m_fileRefPath);
+        compareVisitor.execute(root.get());
 
+        sofa::component::misc::ReadTopologyActivator v_read(sofa::core::ExecParams::defaultInstance(),true);
+        v_read.execute(root.get());
+    }
+    else
+    {
+        // just to create an empty file to know it is already init
+        std::ofstream filestream(data.m_fileRefPath.c_str());
+        filestream.close();
+
+        sofa::component::misc::WriteTopologyCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
+        writeVisitor.setCreateInMapping(data.m_mecaInMapping);
+        writeVisitor.setSceneName(data.m_fileRefPath);
+        writeVisitor.execute(root.get());
+
+        sofa::component::misc::WriteTopologyActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
+        v_write.execute(root.get());
+    }
+
+    simulation::Simulation* simulation = simulation::getSimulation();
+    for (unsigned int i = 0; i<data.m_steps; ++i)
+    {
+        simulation->animate(root.get(), root->getDt());
+    }
+
+
+    if (!createReference)
+    {
+        sofa::component::misc::CompareTopologyResult result(sofa::core::ExecParams::defaultInstance());
+        result.execute(root.get());
+
+        unsigned int totalErr = result.getTotalError();
+
+        if (totalErr != 0)
+        {
+            const std::vector<unsigned int>& listResult = result.getErrors();
+            if (listResult.size() != 5)
+            {
+                msg_error("TopologyRegression_test::runTestImpl")
+                        << "ERROR while reading list of errors per topology type." << msgendl;
+                return;
+            }
+
+            msg_error("TopologyRegression_test::runTestImpl")
+                    << data.m_fileScenePath << ":" << msgendl
+                    << "   TOTALERROR: " << totalErr << msgendl
+                    << " Number of topology container: " << result.getNumCompareTopology() << msgendl
+                    << " Errors per type per step over " << data.m_steps << " steps. "<< msgendl
+                    << "   EDGES ERRORS: " << (float)listResult[0]/data.m_steps << msgendl
+                    << "   TRIANGLES ERRORS: " << (float)listResult[1]/data.m_steps << msgendl
+                    << "   QUADS ERRORS: " << (float)listResult[2]/data.m_steps << msgendl
+                    << "   TETRAHEDRA ERRORS: " << (float)listResult[3]/data.m_steps << msgendl
+                    << "   HEXAHEDRA ERRORS: " << (float)listResult[4]/data.m_steps << msgendl;
+        }
+    }
 }
 
 
