@@ -4,6 +4,7 @@ project(Regression_test)
 include(cmake/environment.cmake)
 
 find_package(SofaMisc) # to include all SOFA
+find_package(SofaExporter)
 find_package(SofaGTestMain)
 
 set(HEADER_FILES
@@ -18,5 +19,5 @@ set(SOURCE_FILES
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 add_definitions("-DSOFA_SRC_DIR=\"${CMAKE_SOURCE_DIR}\"")
-target_link_libraries(${PROJECT_NAME} SofaCore SofaGTestMain SofaComponentBase SofaComponentCommon SofaComponentGeneral SofaComponentAdvanced SofaComponentMisc)
+target_link_libraries(${PROJECT_NAME} SofaCore SofaGTestMain SofaComponentBase SofaComponentCommon SofaComponentGeneral SofaComponentAdvanced SofaComponentMisc SofaExporter)
 
