@@ -103,6 +103,13 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
 
         sofa::component::misc::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
 
+        if (data.m_dumpOnlyLastStep)
+        {
+            helper::vector<double> times;
+            times.push_back(0.0);
+            times.push_back(root->getDt() * (data.m_steps - 1));
+            writeVisitor.setExportTimes(times);
+        }
         writeVisitor.setCreateInMapping(data.m_mecaInMapping);
         writeVisitor.setSceneName(data.m_fileRefPath);
         writeVisitor.execute(root.get());

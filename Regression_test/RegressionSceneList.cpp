@@ -63,6 +63,7 @@ void RegressionSceneList::collectScenesFromList(const std::string& referencesDir
         unsigned int steps = 100;
         double epsilon = 1e-4;
         bool testInMapping = false;
+        bool dumpOnlyLastStep = false;
 
         getline(iniFileStream, line);
 
@@ -74,6 +75,8 @@ void RegressionSceneList::collectScenesFromList(const std::string& referencesDir
         lineStream >> steps;
         lineStream >> epsilon;
         lineStream >> testInMapping;
+        lineStream >> dumpOnlyLastStep;
+
 
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
@@ -92,7 +95,7 @@ void RegressionSceneList::collectScenesFromList(const std::string& referencesDir
         scene = std::string(buffer);
         std::replace(scene.begin(), scene.end(), '\\', '/');
 #endif // WIN32
-        m_scenes.push_back( RegressionSceneData(scene, reference, steps, epsilon, testInMapping) );
+        m_scenes.push_back( RegressionSceneData(scene, reference, steps, epsilon, testInMapping, dumpOnlyLastStep) );
     }
 }
 

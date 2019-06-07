@@ -31,12 +31,13 @@ namespace sofa
 /// a struct to store all info to perform the regression test
 struct RegressionSceneData
 {
-    RegressionSceneData(const std::string& fileScenePath, const std::string& fileRefPath, unsigned int steps, double epsilon, bool mecaInMapping)
+    RegressionSceneData(const std::string& fileScenePath, const std::string& fileRefPath, unsigned int steps, double epsilon, bool mecaInMapping, bool dumpOnlyLastStep)
         : m_fileScenePath(fileScenePath)
         , m_fileRefPath(fileRefPath)
         , m_steps(steps)
         , m_epsilon(epsilon)
         , m_mecaInMapping(mecaInMapping)
+        , m_dumpOnlyLastStep(dumpOnlyLastStep)
     {}
 
     /// Path to the file scene to test
@@ -49,6 +50,8 @@ struct RegressionSceneData
     double m_epsilon;
     /// Option to test mechanicalObject in Node containing a Mapping (true will test them)
     bool m_mecaInMapping;
+    /// Option to compare mechanicalObject dof position at each timestep
+    bool m_dumpOnlyLastStep;
 };
 
 
