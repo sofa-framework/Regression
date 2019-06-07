@@ -2,7 +2,10 @@ import os
 import sys
 
 #example of use:
+# on linux
 #python regression_test.py /home/epernod/projects/regression_test_sofa/build/bin/Regression_test ~/projects/sofa-src ~/projects/regression_test_sofa/src/references ~/projects/sofa-build/
+# on windows
+#python ./sofa-src/applications/projects/Regression/regression_test.py /c/projects/sofa-build/bin/Release/Regression_test.exe /c/projects/sofa-src/ /c/projects/sofa-src/applications/projects/Regression/references/ /c/projects/sofa-build/
 
 #arguments:
 # 0 - script name
