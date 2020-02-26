@@ -14,7 +14,7 @@ Each line of the list file must contain:
 - A local path to the scene
 - The number of simulation steps to run
 - A numerical epsilon for comparison 
-- Optinally if mechanicalObject inside a mapped Node need to be tested.
+- Optionally if mechanicalObject inside a mapped Node need to be tested.
 
 See for example: SOFA_DIR/examples/RegressionStateScenes.regression-tests
 ```
@@ -70,7 +70,7 @@ The script **regression_test.py** will execute the program and add the arguments
 If the scene is already in Sofa repository: 
 1. Just add its path inside the corresponding file: *Examples/RegressionStateScenes.regression-tests* for state test or *Examples/RegressionTopologyScenes.regression-tests* for topology test.
 2. Create the reference file by runing the **Regression_test** program.
-3. Push the list file into sofa/sofa-framework repository and the references into the sofa/regression repository.
+3. Push the list file into sofa-framework/sofa repository and the references into the sofa-framework/regression repository.
 
 If the scene is inside a plugin:
 Create first a new *.regression-tests* file inside your plugin and do the 3 steps above.
