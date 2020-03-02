@@ -35,6 +35,7 @@ Right now we have:
 - **Topology tests:** RegressionTopologyScenes.regression-tests
 See section 4 to add a new type of test.
 
+
 ## 1.b - References
 Reference files are stored in this repository under the **References/** folder, with the same folder hiearchy as the target scenes.
 *For example, for Demo scenes inside SOFA, references will be stored inside **References/Demos/** *
@@ -46,10 +47,10 @@ To do that, the reference files must be locally deleted so they can be regenerat
 
 
 ## 1.c - Non regression tests types
-
 For the moment non regression tests class are: 
 - **StateRegression_test**: At each step, the state (position/velocity) of every independent dofs is compared to values in reference files.
 - **TopologyRegression_test**: At each step, the number of topology element of every topology container is compared to values in reference files.
+
 
 
 # 2 - How to run the regression tests
@@ -63,6 +64,7 @@ The program **Regression_test** can not take arguments because of its internal m
 
 Then just launch the **Regression_test** programm and it will parse the REGRESSION_SCENES_DIR folder to search for .regression-tests files.
 
+
 ## 2.b - Quick solution: By using python script
 To avoid setting up Env. Variables, a python script **regression_test.py**, is available in this repository. You need to execute it by passing the Environment variables and paths as arguments of the script:
 ```
@@ -74,25 +76,32 @@ To avoid setting up Env. Variables, a python script **regression_test.py**, is a
 # 4 - sofa build dir
 ```
 
-## Example of use:##
-### on linux ###
+### Example of use on linux: ###
 ```python regression_test.py /home/epernod/projects/regression_test_sofa/build/bin/Regression_test ~/projects/sofa-src ~/projects/regression_test_sofa/src/references ~/projects/sofa-build/```
-### on windows ###
+### Example of use on windows: ###
 ```python ./sofa-src/applications/projects/Regression/regression_test.py /c/projects/sofa-build/bin/Release/Regression_test.exe /c/projects/sofa-src/ /c/projects/sofa-src/applications/projects/Regression/references/ /c/projects/sofa-build/```
+
+
 
 # 3 - How to add new tests
 
-## 3.a - Add a new scene to be tested
+## 3.a - Add a new SOFA scene to be tested
 
-If the scene is already in Sofa repository: 
+If the scene is already in SOFA repository: 
 1. Just add its path inside the corresponding file: *Examples/RegressionStateScenes.regression-tests* for state test or *Examples/RegressionTopologyScenes.regression-tests* for topology test.
 2. Create the reference file by runing the **Regression_test** program.
-3. Push the list file into sofa-framework/sofa repository and the references into the sofa-framework/regression repository.
+3. **Important Push first the reference files** into the sofa-framework/regression repository so the CI has the new refs for your SOFA PR.
+4. Push the updated .regression-tests file into your PR in sofa-framework/sofa repository
 
+
+## 3.b - Add scene to be tested in a plugin
 If the scene is inside a plugin:
-Create first a new *.regression-tests* file inside your plugin and do the 3 steps above.
+Create first a new *.regression-tests* file inside your plugin and do the steps mentionned in 3.a.
+
 
 # 4 - Add a new non-regression test type
+
+## 4.a - Tests internal mechanism
 
 For each line of the *regression-tests* file, the class ```RegressionSceneList``` store all the parameters, as well as the scene path and its reference path, inside the a structure ```RegressionSceneData``` .
 
@@ -100,8 +109,9 @@ The result of this process is thus a vector of ```RegressionSceneData``` structu
 
 Then, for each ```RegressionSceneData``` a gtest is created and the method ```runTest``` from the Regression_test class will be called to really perform the test (or create the reference).
 
-To add a new type of test you will need to add:
 
+## 4.b - Add a new type of test
+To add a new type of test you will need to add:
 - Inside the **RegressionSceneList** file:
   - Update the ```RegressionSceneData``` structure to store, per scene, the data needed for the test.
 
@@ -114,7 +124,7 @@ To add a new type of test you will need to add:
 
 - Finally in Regression_test.cpp you need to add the code to create a gtest for each RegressionSceneData of your list with your xxRegression_test::runTest method.
 
-See for example the code of StateRegression_test:
+### See for example the code of StateRegression_test: ###
 ```
 /// Create one instance of StateRegression_test per scene in stateRegressionSceneList.m_scenes list
 /// Note: if N differents TEST_P(StateRegression_test, test_N) are created this will create M x N gtest. M being the number of values in the list.
