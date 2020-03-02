@@ -55,14 +55,30 @@ For the moment non regression tests class are:
 # 2 - How to run the regression tests
 
 ## 2.a - Full solution: By setting up environment
-The program **Regression_test** can't take arguments but will use several Environment variables to run correctly:
-- REGRESSION_SCENES_DIR : path to the root folder containing the scenes: SOFA_DIR
-- REGRESSION_REFERENCES_DIR : path to the root folder containing the references
+The program **Regression_test** can not take arguments because of its internal mechanism. Thus to run it correctly, several Environment variables need to be set :
+- REGRESSION_SCENES_DIR : path to the root folder containing the scenes (usually SOFA_SRC_DIR/examples)
+- REGRESSION_REFERENCES_DIR : path to the root folder containing the references (this repository/References)
 - SOFA_ROOT : path to sofa build directory.
+- SOFA_PLUGIN_PATH : path to the plugin library to be loaded by "required plugin" in the scenes (usually SOFA_ROOT/lib)
 
-The script **regression_test.py** will execute the program and add the arguments as Env variables. See example of use inside the script.
+Then just launch the **Regression_test** programm and it will parse the REGRESSION_SCENES_DIR folder to search for .regression-tests files.
 
 ## 2.b - Quick solution: By using python script
+To avoid setting up Env. Variables, a python script **regression_test.py**, is available in this repository. You need to execute it by passing the Environment variables and paths as arguments of the script:
+```
+#arguments:
+# 0 - script name
+# 1 - regression_test binary path
+# 2 - regression scenes dir
+# 3 - regression references dir
+# 4 - sofa build dir
+```
+
+## Example of use:##
+### on linux ###
+```python regression_test.py /home/epernod/projects/regression_test_sofa/build/bin/Regression_test ~/projects/sofa-src ~/projects/regression_test_sofa/src/references ~/projects/sofa-build/```
+### on windows ###
+```python ./sofa-src/applications/projects/Regression/regression_test.py /c/projects/sofa-build/bin/Release/Regression_test.exe /c/projects/sofa-src/ /c/projects/sofa-src/applications/projects/Regression/references/ /c/projects/sofa-build/```
 
 # 3 - How to add new tests
 
