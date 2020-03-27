@@ -16,18 +16,22 @@ SOFA Regression Documentation
 The **Regression_test** program will search for **\*.regression-tests** files in the target directory (SOFA directory).
 This file contains a list of scene to be tested. 
 Each line of the list file must contain: 
-- A local path to the scene
-- The number of simulation steps to run
-- A numerical epsilon for comparison 
-- Optionally if mechanicalObject inside a mapped Node need to be tested.
+1. A local path to the scene
+2. The number of simulation steps to run
+3. A numerical epsilon for comparison 
+4. Set this value to 1 if mechanicalObject inside a mapped Node need to be tested. Otherwise 0.
+5. Set this value to 1 if only last iteration need to be dumped and tested. Otherwise 0.
 
 See for example: SOFA_DIR/examples/RegressionStateScenes.regression-tests
 ```
 ### Demo scenes ###
-Demos/caduceus.scn 100 1e-3
-Demos/TriangleSurfaceCutting.scn 100 1e-4 1
-Demos/liver.scn 100 1e-4 1
+Demos/caduceus.scn 100 1e-3 0 1
+Demos/TriangleSurfaceCutting.scn 100 1e-4 1 1
+Demos/liver.scn 100 1e-4 1 1
 ```
+
+See https://github.com/sofa-framework/regression/blob/ca388cf402244e5196d2b46da69ed2f5a92fbdb1/Regression_test/RegressionSceneList.cpp#L73 for the parsing code.
+
 
 The class ```RegressionSceneList``` is used to parse folders and look for those files.
 Right now we have:
