@@ -23,3 +23,4 @@ add_definitions("-DSOFA_SRC_DIR=\"${CMAKE_SOURCE_DIR}\"")
 target_link_libraries(${PROJECT_NAME} SofaCore SofaGTestMain SofaComponentBase SofaComponentCommon SofaComponentGeneral SofaComponentAdvanced SofaComponentMisc)
 target_link_libraries(${PROJECT_NAME} SofaExporter SofaValidation)
 
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
