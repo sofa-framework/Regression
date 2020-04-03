@@ -5,11 +5,11 @@
 
 using sofa::helper::testing::BaseTest;
 
-#include <SofaComponentBase/initComponentBase.h>
-#include <SofaComponentCommon/initComponentCommon.h>
-#include <SofaComponentGeneral/initComponentGeneral.h>
-#include <SofaComponentAdvanced/initComponentAdvanced.h>
-#include <SofaComponentMisc/initComponentMisc.h>
+#include <SofaBase/initBase.h>
+#include <SofaCommon/initCommon.h>
+#include <SofaGeneral/initGeneral.h>
+#include <SofaAdvanced/initAdvanced.h>
+#include <SofaMisc/initMisc.h>
 
 #include <SofaExporter/WriteState.h>
 #include <SofaGeneralLoader/ReadState.h>
@@ -46,11 +46,11 @@ void BaseRegression_test::runTest(RegressionSceneData data)
 {
     msg_info("BaseRegression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
-    sofa::component::initComponentBase();
-    sofa::component::initComponentCommon();
-    sofa::component::initComponentGeneral();
-    sofa::component::initComponentAdvanced();
-    sofa::component::initComponentMisc();
+    sofa::component::initBase();
+    sofa::component::initCommon();
+    sofa::component::initGeneral();
+    sofa::component::initAdvanced();
+    sofa::component::initMisc();
 
     simulation::Simulation* simulation = simulation::getSimulation();
 
