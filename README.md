@@ -7,7 +7,7 @@ SOFA Regression Documentation
 
 ## Building Regression_test program ##
 - This repository should be included inside the main SOFA repository as /applications/projects/Regression folder.
-- Then while configuring SOFA cmake project, check the option: **APPLICAITON_REGRESSION_TEST** and be sure to also have **SOFA_BUILD_TESTS**.
+- Then while configuring SOFA cmake project, check the option: **APPLICATION_REGRESSION_TEST** and be sure to also have **SOFA_BUILD_TESTS**.
 
 
 # 1 - Non Regression Test general mechanism #
