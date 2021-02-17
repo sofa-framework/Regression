@@ -23,6 +23,8 @@ using sofa::helper::testing::BaseSimulationTest;
 #include <SofaValidation/CompareState.h>
 #include <SofaValidation/CompareTopology.h>
 
+#include <sofa/core/MechanicalParams.h>
+
 namespace sofa 
 {
 
