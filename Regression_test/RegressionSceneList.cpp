@@ -21,11 +21,12 @@
 ******************************************************************************/
 #include "RegressionSceneList.h"
 
+#include <sofa/helper/logging/Messaging.h>
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
 using sofa::helper::system::FileSystem;
-
 #include <sofa/helper/testing/BaseTest.h>
+#include <sofa/core/ExecParams.h>
 #include <sofa/helper/logging/Messaging.h>
 #include <fstream>
 
