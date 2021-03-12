@@ -28,7 +28,7 @@ using sofa::helper::testing::BaseSimulationTest;
 namespace sofa 
 {
 
-std::string BaseRegression_test::getTestName(const testing::TestParamInfo<RegressionSceneData>& p)
+std::string BaseRegression_test::getTestName(const ::testing::TestParamInfo<RegressionSceneData>& p)
 {
     const std::string& path = p.param.m_fileScenePath;
     std::size_t pos = path.find_last_of("/"); // get name of the file without path

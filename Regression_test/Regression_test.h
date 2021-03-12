@@ -52,7 +52,7 @@ class BaseRegression_test : public sofa::helper::testing::BaseSimulationTest, pu
 {
 public:
     /// return the name of the file being tested without path nor extension
-    static std::string getTestName(const testing::TestParamInfo<RegressionSceneData>& p);
+    static std::string getTestName(const ::testing::TestParamInfo<RegressionSceneData>& p);
 
     /// Generic method for the test that will run the scene for a given number of steps @sa RegressionSceneData.m_steps (default 100) and call
     /// runTestImpl at each step.
