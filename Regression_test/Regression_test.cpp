@@ -5,11 +5,7 @@
 
 using sofa::helper::testing::BaseTest;
 
-#include <SofaBase/initSofaBase.h>
-#include <SofaCommon/initSofaCommon.h>
-#include <SofaGeneral/initSofaGeneral.h>
-#include <SofaAdvanced/initSofaAdvanced.h>
-#include <SofaMisc/initSofaMisc.h>
+#include <SofaComponentAll/initSofaComponentAll.h>
 
 #include <SofaExporter/WriteState.h>
 #include <SofaGeneralLoader/ReadState.h>
@@ -48,11 +44,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
 {
     msg_info("BaseRegression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
-    sofa::component::initSofaBase();
-    sofa::component::initSofaCommon();
-    sofa::component::initSofaGeneral();
-    sofa::component::initSofaAdvanced();
-    sofa::component::initSofaMisc();
+    sofa::component::initSofaComponentAll();
 
     simulation::Simulation* simulation = simulation::getSimulation();
 
@@ -107,7 +99,7 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
 
         if (data.m_dumpOnlyLastStep)
         {
-            helper::vector<double> times;
+            std::vector<double> times;
             times.push_back(0.0);
             times.push_back(root->getDt() * (data.m_steps - 1));
             writeVisitor.setExportTimes(times);
