@@ -4,7 +4,8 @@
         
     <Gravity name="G" gravity="0.0 -9.81 0" />
     <CollisionPipeline name="pipeline" depth="6" verbose="0" />
-    <BruteForceDetection name="detection" />
+    <BruteForceBroadPhase name="N2" />
+    <BVHNarrowPhase />
     <CollisionResponse name="response" response="default" />
     <DiscreteIntersection name="proximity" />
     
