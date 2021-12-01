@@ -3,7 +3,7 @@
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
 
-using sofa::helper::testing::BaseTest;
+using sofa::testing::BaseTest;
 
 #include <SofaComponentAll/initSofaComponentAll.h>
 
@@ -15,7 +15,7 @@ using sofa::helper::testing::BaseTest;
 
 #include <SofaSimulationGraph/DAGSimulation.h>
 
-using sofa::helper::testing::BaseSimulationTest;
+using sofa::testing::BaseSimulationTest;
 #include <SofaValidation/CompareState.h>
 #include <SofaValidation/CompareTopology.h>
 

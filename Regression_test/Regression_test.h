@@ -23,7 +23,7 @@
 #define SOFA_REGRESSION_TEST_H
 
 #include "RegressionSceneList.h"
-#include <SofaSimulationGraph/testing/BaseSimulationTest.h>
+#include <sofa/testing/BaseSimulationTest.h>
 
 namespace sofa 
 {
@@ -48,7 +48,7 @@ namespace sofa
 ///
 /// If the result of the simulation changed voluntarily, these files must be manually deleted (locally) so they can be created again (by running the test).
 /// Their modifications must be pushed to the repository.
-class BaseRegression_test : public sofa::helper::testing::BaseSimulationTest, public ::testing::WithParamInterface<RegressionSceneData>
+class BaseRegression_test : public sofa::testing::BaseSimulationTest, public ::testing::WithParamInterface<RegressionSceneData>
 {
 public:
     /// return the name of the file being tested without path nor extension
