@@ -3,9 +3,9 @@ project(Regression_test)
 
 include(cmake/environment.cmake)
 
-find_package(SofaComponentAll REQUIRED)
-find_package(SofaValidation REQUIRED)
-find_package(SofaExporter REQUIRED)
+# regression_test itself just needs Sofa.Component.Playback
+# But Sofa.Component ensures that we have all the Sofa.Component.* components needed in the tested scenes.
+find_package(Sofa.Component REQUIRED)
 find_package(Sofa.Testing REQUIRED)
 
 set(HEADER_FILES
@@ -20,5 +20,5 @@ set(SOURCE_FILES
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 add_definitions("-DSOFA_SRC_DIR=\"${CMAKE_SOURCE_DIR}\"")
-target_link_libraries(${PROJECT_NAME} SofaComponentAll)
-target_link_libraries(${PROJECT_NAME} SofaExporter SofaValidation Sofa.Testing)
+target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Testing)
+target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Component)

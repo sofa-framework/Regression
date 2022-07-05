@@ -5,19 +5,18 @@
 
 using sofa::testing::BaseTest;
 
-#include <SofaComponentAll/initSofaComponentAll.h>
+#include <sofa/component/init.h>
 
-#include <SofaExporter/WriteState.h>
-#include <SofaGeneralLoader/ReadState.h>
+#include <sofa/component/playback/ReadState.h>
+#include <sofa/component/playback/WriteState.h>
+#include <sofa/component/playback/ReadTopology.h>
+#include <sofa/component/playback/WriteTopology.h>
+#include <sofa/component/playback/CompareState.h>
+#include <sofa/component/playback/CompareTopology.h>
 
-#include <SofaGeneralLoader/ReadTopology.h>
-#include <SofaExporter/WriteTopology.h>
-
-#include <SofaSimulationGraph/DAGSimulation.h>
+#include <sofa/simulation/graph/DAGSimulation.h>
 
 using sofa::testing::BaseSimulationTest;
-#include <SofaValidation/CompareState.h>
-#include <SofaValidation/CompareTopology.h>
 
 #include <sofa/core/MechanicalParams.h>
 
@@ -44,7 +43,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
 {
     msg_info("BaseRegression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
-    sofa::component::initSofaComponentAll();
+    sofa::component::init();
 
     simulation::Simulation* simulation = simulation::getSimulation();
 
@@ -78,13 +77,13 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
     if (!createReference)
     {
         // Add CompareState components: as it derives from the ReadState, we use the ReadStateActivator to enable them.
-        sofa::component::misc::CompareStateCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::CompareStateCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
 
         compareVisitor.setCreateInMapping(data.m_mecaInMapping);
         compareVisitor.setSceneName(data.m_fileRefPath);
         compareVisitor.execute(root.get());
 
-        sofa::component::misc::ReadStateActivator v_read(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
+        sofa::component::playback::ReadStateActivator v_read(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
         v_read.execute(root.get());
     }
     else // create reference
@@ -95,7 +94,7 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
         std::ofstream filestream(data.m_fileRefPath.c_str());
         filestream.close();
 
-        sofa::component::misc::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
 
         if (data.m_dumpOnlyLastStep)
         {
@@ -108,7 +107,7 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
         writeVisitor.setSceneName(data.m_fileRefPath);
         writeVisitor.execute(root.get());
 
-        sofa::component::misc::WriteStateActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
+        sofa::component::playback::WriteStateActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
         v_write.execute(root.get());
     }
 
@@ -121,7 +120,7 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
     if (!createReference)
     {
         // Read the final error: the summation of all the error made at each time step
-        sofa::component::misc::CompareStateResult result(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::CompareStateResult result(sofa::core::ExecParams::defaultInstance());
         result.execute(root.get());
 
         double errorByDof = result.getErrorByDof() / double(result.getNumCompareState());
@@ -142,12 +141,12 @@ void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simula
     if (!createReference)
     {
         //We add CompareTopology components: as it derives from the ReadTopology, we use the ReadTopologyActivator to enable them.
-        sofa::component::misc::CompareTopologyCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::CompareTopologyCreator compareVisitor(sofa::core::ExecParams::defaultInstance());
         compareVisitor.setCreateInMapping(data.m_mecaInMapping);
         compareVisitor.setSceneName(data.m_fileRefPath);
         compareVisitor.execute(root.get());
 
-        sofa::component::misc::ReadTopologyActivator v_read(sofa::core::ExecParams::defaultInstance(),true);
+        sofa::component::playback::ReadTopologyActivator v_read(sofa::core::ExecParams::defaultInstance(),true);
         v_read.execute(root.get());
     }
     else
@@ -156,12 +155,12 @@ void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simula
         std::ofstream filestream(data.m_fileRefPath.c_str());
         filestream.close();
 
-        sofa::component::misc::WriteTopologyCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::WriteTopologyCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
         writeVisitor.setCreateInMapping(data.m_mecaInMapping);
         writeVisitor.setSceneName(data.m_fileRefPath);
         writeVisitor.execute(root.get());
 
-        sofa::component::misc::WriteTopologyActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
+        sofa::component::playback::WriteTopologyActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
         v_write.execute(root.get());
     }
 
@@ -174,7 +173,7 @@ void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simula
 
     if (!createReference)
     {
-        sofa::component::misc::CompareTopologyResult result(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::CompareTopologyResult result(sofa::core::ExecParams::defaultInstance());
         result.execute(root.get());
 
         unsigned int totalErr = result.getTotalError();
