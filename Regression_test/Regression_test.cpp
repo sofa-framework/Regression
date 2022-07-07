@@ -5,8 +5,6 @@
 
 using sofa::testing::BaseTest;
 
-#include <sofa/component/init.h>
-
 #include <sofa/component/playback/ReadState.h>
 #include <sofa/component/playback/WriteState.h>
 #include <sofa/component/playback/ReadTopology.h>
@@ -15,6 +13,7 @@ using sofa::testing::BaseTest;
 #include <sofa/component/playback/CompareTopology.h>
 
 #include <sofa/simulation/graph/DAGSimulation.h>
+#include <sofa/simulation/graph/SimpleApi.h>
 
 using sofa::testing::BaseSimulationTest;
 
@@ -43,7 +42,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
 {
     msg_info("BaseRegression_test::runStateRegressionTest") << "Testing " << data.m_fileScenePath;
 
-    sofa::component::init();
+    sofa::simpleapi::importPlugin("Sofa.Component");
 
     simulation::Simulation* simulation = simulation::getSimulation();
 
