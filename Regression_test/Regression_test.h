@@ -22,7 +22,7 @@
 #ifndef SOFA_REGRESSION_TEST_H
 #define SOFA_REGRESSION_TEST_H
 
-#include "RegressionSceneList.h"
+#include "RegressionSceneList.inl"
 #include <sofa/testing/BaseSimulationTest.h>
 
 namespace sofa 
@@ -84,31 +84,24 @@ public:
 
 
 
-
 /// Structure creating and storing, as a List for gtest, the @sa RegressionSceneData for each Sofa scene to be tested for the state positions
-static struct StateRegressionSceneList : public RegressionSceneList
+struct StateRegressionSceneList : public RegressionSceneList<StateRegressionSceneList>
 {
-    StateRegressionSceneList()
-    {
-        if(!m_defaultScenesDir.empty() && !m_defaultReferencesDir.empty())
-            collectScenesFromPaths(m_defaultReferencesDir, m_defaultScenesDir, "RegressionStateScenes.regression-tests");
-        else
-            msg_error("StateRegressionSceneList") << "REGRESSION_SCENES_DIR and REGRESSION_REFERENCES_DIR env vars are required.";
-    }
-} stateRegressionSceneList; // construction will fill m_scenes
+    const std::string getListType() { return  "StateRegressionSceneList"; }
+    const std::string getListPrefix() { return  "RegressionStateScenes"; }
+
+};
+static StateRegressionSceneList stateRegressionSceneList; // construction will fill m_scenes
 
 
 /// Structure creating and storing, as a List for gtest, the @sa RegressionSceneData for each Sofa scene to be tested for the topology structure
-static struct TopologyRegressionSceneList : public RegressionSceneList
+struct TopologyRegressionSceneList : public RegressionSceneList<TopologyRegressionSceneList>
 {
-    TopologyRegressionSceneList()
-    {
-        if(!m_defaultScenesDir.empty() && !m_defaultReferencesDir.empty())
-            collectScenesFromPaths(m_defaultReferencesDir, m_defaultScenesDir, "RegressionTopologyScenes.regression-tests");
-        else
-            msg_error("StateRegressionSceneList") << "REGRESSION_SCENES_DIR and REGRESSION_REFERENCES_DIR env vars are required.";
-    }
-} topologyRegressionSceneList; // construction will fill m_scenes
+    const std::string getListType() { return  "TopologyRegressionSceneList"; }
+    const std::string getListPrefix() { return  "RegressionTopologyScenes"; }
+
+};
+static TopologyRegressionSceneList topologyRegressionSceneList; // construction will fill m_scenes
 
 
 

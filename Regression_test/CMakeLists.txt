@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 project(Regression_test)
 
 include(cmake/environment.cmake)
@@ -10,6 +10,7 @@ find_package(Sofa.Testing REQUIRED)
 
 set(HEADER_FILES
     RegressionSceneList.h
+    RegressionSceneList.inl
     Regression_test.h
 )
 
