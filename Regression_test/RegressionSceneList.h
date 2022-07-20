@@ -64,8 +64,8 @@ template <typename T>
 class RegressionSceneList
 {
 public:
-    std::string m_defaultScenesDir;
-    std::string m_defaultReferencesDir;
+    std::string m_scenesDir;
+    std::string m_referencesDir;
 
     /// List of regression Data to perform @sa RegressionSceneTest_Data
     std::vector<RegressionSceneData> m_scenes;

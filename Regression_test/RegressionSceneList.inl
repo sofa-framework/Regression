@@ -51,7 +51,7 @@ RegressionSceneList<T>::RegressionSceneList()
         msg_error(listType) << "The environment variable REGRESSION_SCENES_DIR is invalid (its content does not exist or is incorrect); its current value is " << scenesDirVar;
         return;
     }
-    m_defaultScenesDir = std::string(FileSystem::cleanPath(scenesDirVar));
+    m_scenesDir = std::string(FileSystem::cleanPath(scenesDirVar));
 
     char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
     if (refDirVar == nullptr)
@@ -66,9 +66,9 @@ RegressionSceneList<T>::RegressionSceneList()
         return;
     }
 
-    m_defaultReferencesDir = std::string(FileSystem::cleanPath(refDirVar));
-    std::cout << listType << " : LIST FILENAME " << static_cast<T*>(this)->getListFilename() << std::endl;;
-    collectScenesFromPaths(m_defaultReferencesDir, m_defaultScenesDir, static_cast<T*>(this)->getListFilename());
+    m_referencesDir = std::string(FileSystem::cleanPath(refDirVar));
+
+    collectScenesFromPaths(m_referencesDir, m_scenesDir, static_cast<T*>(this)->getListFilename());
 }
 
 template <typename T>
