@@ -19,8 +19,7 @@
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
 ******************************************************************************/
-#ifndef SOFA_RegressionScene_list_H
-#define SOFA_RegressionScene_list_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -61,18 +60,27 @@ struct RegressionSceneData
     Main method is @sa collectScenesFromPaths
     All collected data will be store inside the vector @sa m_listScenes
 */
+template <typename T>
 class RegressionSceneList
 {
 public:
-    std::string m_defaultScenesDir;
-    std::string m_defaultReferencesDir;
+    std::string m_scenesDir;
+    std::string m_referencesDir;
 
     /// List of regression Data to perform @sa RegressionSceneTest_Data
     std::vector<RegressionSceneData> m_scenes;
 
     RegressionSceneList();
 
+    static inline const std::string s_listSuffix = ".regression-tests";
+
+    const std::string getListType() { return  "RegressionSceneList"; }
+    const std::string getListPrefix() { return  ""; }
+    const std::string getListFilename() { return static_cast<T*>(this)->getListPrefix() + s_listSuffix; }
+
+
 protected:
+    
     /// Method called by collectScenesFromDir to search specific regression file list inside a directory
     void collectScenesFromList(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFile);
 
@@ -84,5 +92,3 @@ protected:
 };
 
 } // namespace sofa
-
-#endif // SOFA_RegressionScene_list_H
