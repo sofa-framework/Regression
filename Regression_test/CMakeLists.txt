@@ -24,9 +24,10 @@ add_definitions("-DSOFA_SRC_DIR=\"${CMAKE_SOURCE_DIR}\"")
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Testing)
 target_link_libraries(${PROJECT_NAME} PUBLIC Sofa.Component)
 
-sofa_add_targets_to_package(
-    PACKAGE_NAME SofaGui
+sofa_create_package_with_targets(
+    PACKAGE_NAME ${PROJECT_NAME}
+    PACKAGE_VERSION ${Sofa_VERSION}
     TARGETS ${PROJECT_NAME} AUTO_SET_TARGET_PROPERTIES
-    INCLUDE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
-    INCLUDE_INSTALL_DIR "SofaGui/${PROJECT_NAME}"
-    )
+    INCLUDE_SOURCE_DIR "src"
+    INCLUDE_INSTALL_DIR "${PROJECT_NAME}"
+)
