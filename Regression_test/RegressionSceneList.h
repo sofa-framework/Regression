@@ -72,11 +72,11 @@ public:
 
     RegressionSceneList();
 
-    static inline const std::string s_listSuffix = ".regression-tests";
+    static inline const char* s_listSuffix = ".regression-tests";
 
     const std::string getListType() { return  "RegressionSceneList"; }
     const std::string getListPrefix() { return  ""; }
-    const std::string getListFilename() { return static_cast<T*>(this)->getListPrefix() + s_listSuffix; }
+    const std::string getListFilename() { return static_cast<T*>(this)->getListPrefix() + std::string(s_listSuffix); }
 
 
 protected:
