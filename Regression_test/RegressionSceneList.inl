@@ -46,12 +46,6 @@ RegressionSceneList<T>::RegressionSceneList()
         return;
     }
 
-    if (!FileSystem::exists(FileSystem::cleanPath(scenesDirVar)))
-    {
-        msg_error(listType) << "The environment variable REGRESSION_SCENES_DIR is invalid (its content does not exist or is incorrect); its current value is " << scenesDirVar;
-        return;
-    }
-    m_scenesDir = std::string(FileSystem::cleanPath(scenesDirVar));
 
     char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
     if (refDirVar == nullptr)
@@ -60,15 +54,68 @@ RegressionSceneList<T>::RegressionSceneList()
         return;
     }
 
-    if (!FileSystem::exists(FileSystem::cleanPath(refDirVar)))
+    //Iterate through the environement variables to find substrings delimited by ':'
+    size_t pos_start = 0;
+    size_t pos_end;
+
+    std::string multipleSceneDir(scenesDirVar);
+    std::string tempSceneFolder;
+    std::vector<std::string>  sceneFolderVector;
+
+    std::string multipleRefDir(refDirVar);
+    std::string tempRefFolder;
+    std::vector<std::string>  refFolderVector;
+
+    //REGRESSION_SCENES_DIR
+    while ((pos_end = multipleSceneDir.find(':', pos_start)) != std::string::npos)
     {
-        msg_error(listType) << "The environment variable REGRESSION_REFERENCES_DIR is invalid (its content does not exist or is incorrect); its current value is " << refDirVar;
+        tempSceneFolder = multipleSceneDir.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + 1;
+        sceneFolderVector.push_back(tempSceneFolder);
+    }
+    if(multipleSceneDir.substr(pos_start,std::string::npos).size()) //get what's after the last ':' if exists
+        sceneFolderVector.push_back(multipleSceneDir.substr(pos_start,std::string::npos));
+
+    //REGRESSION_REFERENCES_DIR
+    pos_start = 0;
+    while ((pos_end = multipleRefDir.find(':', pos_start)) != std::string::npos)
+    {
+        tempRefFolder = multipleRefDir.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + 1;
+        refFolderVector.push_back(tempRefFolder);
+    }
+    if(multipleRefDir.substr(pos_start,std::string::npos).size()) //get what's after the last ':' if exists
+        refFolderVector.push_back(multipleRefDir.substr(pos_start,std::string::npos));
+
+    if(sceneFolderVector.size() != refFolderVector.size())
+    {
+        msg_error(listType) << "The environment variables REGRESSION_SCENES_DIR and REGRESSION_REFERENCES_DIR must contain the same number of folder, corresponding to a pair of matching scene/reference folder.";
         return;
     }
 
-    m_referencesDir = std::string(FileSystem::cleanPath(refDirVar));
+    //Now gather all the regression test file in all the given directories
+    for(size_t i=0; i<sceneFolderVector.size(); ++i)
+    {
+        if (!FileSystem::exists(FileSystem::cleanPath(sceneFolderVector[i])))
+        {
+            msg_error(listType) << "The environment variable REGRESSION_SCENES_DIR is invalid (its content does not exist or is incorrect); the faulty directory is " << sceneFolderVector[i];
+            return;
+        }
+        const std::string scenesDir = std::string(FileSystem::cleanPath(sceneFolderVector[i]));
 
-    collectScenesFromPaths(m_referencesDir, m_scenesDir, static_cast<T*>(this)->getListFilename());
+
+        if (!FileSystem::exists(FileSystem::cleanPath(refFolderVector[i])))
+        {
+            msg_error(listType) << "The environment variable REGRESSION_REFERENCES_DIR is invalid (its content does not exist or is incorrect); the faulty directory is " << refFolderVector[i];
+            return;
+        }
+
+        const std::string referencesDir = std::string(FileSystem::cleanPath(refFolderVector[i]));
+
+        collectScenesFromPaths(referencesDir, scenesDir, static_cast<T*>(this)->getListFilename());
+
+
+    }
 }
 
 template <typename T>
