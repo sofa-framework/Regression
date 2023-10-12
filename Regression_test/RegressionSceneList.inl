@@ -67,24 +67,24 @@ RegressionSceneList<T>::RegressionSceneList()
     std::vector<std::string>  refFolderVector;
 
     //REGRESSION_SCENES_DIR
-    while ((pos_end = multipleSceneDir.find(':', pos_start)) != std::string::npos)
+    while ((pos_end = multipleSceneDir.find('|', pos_start)) != std::string::npos)
     {
         tempSceneFolder = multipleSceneDir.substr (pos_start, pos_end - pos_start);
         pos_start = pos_end + 1;
         sceneFolderVector.push_back(tempSceneFolder);
     }
-    if(multipleSceneDir.substr(pos_start,std::string::npos).size()) //get what's after the last ':' if exists
+    if(multipleSceneDir.substr(pos_start,std::string::npos).size()) //get what's after the last '|' if exists
         sceneFolderVector.push_back(multipleSceneDir.substr(pos_start,std::string::npos));
 
     //REGRESSION_REFERENCES_DIR
     pos_start = 0;
-    while ((pos_end = multipleRefDir.find(':', pos_start)) != std::string::npos)
+    while ((pos_end = multipleRefDir.find('|', pos_start)) != std::string::npos)
     {
         tempRefFolder = multipleRefDir.substr (pos_start, pos_end - pos_start);
         pos_start = pos_end + 1;
         refFolderVector.push_back(tempRefFolder);
     }
-    if(multipleRefDir.substr(pos_start,std::string::npos).size()) //get what's after the last ':' if exists
+    if(multipleRefDir.substr(pos_start,std::string::npos).size()) //get what's after the last '|' if exists
         refFolderVector.push_back(multipleRefDir.substr(pos_start,std::string::npos));
 
     if(sceneFolderVector.size() != refFolderVector.size())
