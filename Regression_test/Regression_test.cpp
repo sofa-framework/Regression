@@ -47,7 +47,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
     simulation::Simulation* simulation = simulation::getSimulation();
 
     // Load the scene
-    sofa::simulation::Node::SPtr root = simulation->load(data.m_fileScenePath.c_str());
+    sofa::simulation::Node::SPtr root = sofa::simulation::node::load(data.m_fileScenePath.c_str());
 
     // if no root node -> loading failed
     if (root == NULL)
@@ -57,7 +57,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
         return;
     }
 
-    simulation->init(root.get());
+    sofa::simulation::node::initRoot(root.get());
 
     // check if ref file exist will run and compare to references
     if (helper::system::FileSystem::exists(data.m_fileRefPath) && !helper::system::FileSystem::isDirectory(data.m_fileRefPath))
@@ -66,7 +66,7 @@ void BaseRegression_test::runTest(RegressionSceneData data)
         runTestImpl(data, root, true);
 
     // Clear and prepare for next scene
-    simulation->unload(root.get());
+    sofa::simulation::node::unload(root.get());
     root.reset();
 }
 
