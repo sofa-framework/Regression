@@ -110,10 +110,9 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
         v_write.execute(root.get());
     }
 
-    simulation::Simulation* simulation = simulation::getSimulation();
     for (unsigned int i = 0; i<data.m_steps; ++i)
     {
-        simulation->animate(root.get(), root->getDt());
+        sofa::simulation::node::animate(root.get(), root->getDt());
     }
 
     if (!createReference)
@@ -163,10 +162,9 @@ void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simula
         v_write.execute(root.get());
     }
 
-    simulation::Simulation* simulation = simulation::getSimulation();
     for (unsigned int i = 0; i<data.m_steps; ++i)
     {
-        simulation->animate(root.get(), root->getDt());
+        sofa::simulation::node::animate(root.get(), root->getDt());
     }
 
 
