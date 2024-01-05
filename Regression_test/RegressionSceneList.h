@@ -79,13 +79,13 @@ public:
 protected:
     
     /// Method called by collectScenesFromDir to search specific regression file list inside a directory
-    void collectScenesFromList(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFile);
+    void collectScenesFromList(const std::string& scenesDir, const std::string& listFile);
 
     /// Method called by @sa collectScenesFromPaths to loop on the subdirectories to find regression file list
-    void collectScenesFromDir(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename);
+    void collectScenesFromDir(const std::string& scenesDir, const std::string& listFilename);
 
     /// Main method to start the parsing of regression file list on specific Sofa src paths
-    virtual void collectScenesFromPaths(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename);
+    virtual void collectScenesFromPaths(const std::string& scenesDir, const std::string& listFilename);
 };
 
 } // namespace sofa
