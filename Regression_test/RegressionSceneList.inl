@@ -47,13 +47,6 @@ RegressionSceneList<T>::RegressionSceneList()
     }
 
 
-    char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
-    if (refDirVar == nullptr)
-    {
-        msg_error(listType) << "The environment variable REGRESSION_REFERENCES_DIR is required but is missing or is empty.";
-        return;
-    }
-
     //Iterate through the environement variables to find substrings delimited by ':'
     size_t pos_start = 0;
     size_t pos_end;
@@ -100,14 +93,16 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
     // parser le fichier -> (file,nb time steps,epsilon)
     std::ifstream iniFileStream(listFile.c_str());
     std::string referencesDir;
+
     //Read reference folder
-    //TODO
     while (!iniFileStream.eof())
     {
         getline(iniFileStream, referencesDir);
 
         if (referencesDir.empty() || referencesDir[0] == '#')
             continue;
+        else
+            break;
     }
 
     //Read scenes
@@ -136,7 +131,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
         sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
-        std::string reference = listDir + "/" + referencesDir + "/" + sceneFromScenesDir + ".reference";
+        std::string reference = listDir + "/" + referencesDir + "/" + sceneFromList + ".reference";
 
 #ifdef WIN32
         // Minimize absolute scene path to avoid MAX_PATH problem
@@ -159,10 +154,10 @@ void RegressionSceneList<T>::collectScenesFromDir(const std::string& scenesDir, 
 {
     std::vector<std::string> regressionListFiles;
     int error = helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
-    if(error <= 0)
-    {
-        msg_error("RegressionSceneList") << "findFiles failed, error code returned: " << error;
-    }
+//     if(error != 0)
+//     {
+//         msg_error("RegressionSceneList") << "findFiles failed, error code returned: " << error;
+//     }
 
     for (const std::string& regressionListFile : regressionListFiles)
     {
