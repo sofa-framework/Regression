@@ -47,13 +47,6 @@ RegressionSceneList<T>::RegressionSceneList()
     }
 
 
-    char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
-    if (refDirVar == nullptr)
-    {
-        msg_error(listType) << "The environment variable REGRESSION_REFERENCES_DIR is required but is missing or is empty.";
-        return;
-    }
-
     //Iterate through the environement variables to find substrings delimited by ':'
     size_t pos_start = 0;
     size_t pos_end;
@@ -62,9 +55,6 @@ RegressionSceneList<T>::RegressionSceneList()
     std::string tempSceneFolder;
     std::vector<std::string>  sceneFolderVector;
 
-    std::string multipleRefDir(refDirVar);
-    std::string tempRefFolder;
-    std::vector<std::string>  refFolderVector;
 
     //REGRESSION_SCENES_DIR
     while ((pos_end = multipleSceneDir.find('|', pos_start)) != std::string::npos)
@@ -76,22 +66,6 @@ RegressionSceneList<T>::RegressionSceneList()
     if(multipleSceneDir.substr(pos_start,std::string::npos).size()) //get what's after the last '|' if exists
         sceneFolderVector.push_back(multipleSceneDir.substr(pos_start,std::string::npos));
 
-    //REGRESSION_REFERENCES_DIR
-    pos_start = 0;
-    while ((pos_end = multipleRefDir.find('|', pos_start)) != std::string::npos)
-    {
-        tempRefFolder = multipleRefDir.substr (pos_start, pos_end - pos_start);
-        pos_start = pos_end + 1;
-        refFolderVector.push_back(tempRefFolder);
-    }
-    if(multipleRefDir.substr(pos_start,std::string::npos).size()) //get what's after the last '|' if exists
-        refFolderVector.push_back(multipleRefDir.substr(pos_start,std::string::npos));
-
-    if(sceneFolderVector.size() != refFolderVector.size())
-    {
-        msg_error(listType) << "The environment variables REGRESSION_SCENES_DIR and REGRESSION_REFERENCES_DIR must contain the same number of folder, corresponding to a pair of matching scene/reference folder.";
-        return;
-    }
 
     //Now gather all the regression test file in all the given directories
     for(size_t i=0; i<sceneFolderVector.size(); ++i)
@@ -103,31 +77,35 @@ RegressionSceneList<T>::RegressionSceneList()
         }
         const std::string scenesDir = std::string(FileSystem::cleanPath(sceneFolderVector[i]));
 
-
-        if (!FileSystem::exists(FileSystem::cleanPath(refFolderVector[i])))
-        {
-            msg_error(listType) << "The environment variable REGRESSION_REFERENCES_DIR is invalid (its content does not exist or is incorrect); the faulty directory is " << refFolderVector[i];
-            return;
-        }
-
-        const std::string referencesDir = std::string(FileSystem::cleanPath(refFolderVector[i]));
-
-        collectScenesFromPaths(referencesDir, scenesDir, static_cast<T*>(this)->getListFilename());
+        collectScenesFromPaths(scenesDir, static_cast<T*>(this)->getListFilename());
 
 
     }
 }
 
 template <typename T>
-void RegressionSceneList<T>::collectScenesFromList(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFile)
+void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir, const std::string& listFile)
 {
     // lire plugin_test/regression_scene_list -> (file,nb time steps,epsilon)
     // pour toutes les scenes
     const std::string listDir = FileSystem::getParentDirectory(listFile);
     msg_info("Regression_test") << "Parsing " << listFile;
-
     // parser le fichier -> (file,nb time steps,epsilon)
     std::ifstream iniFileStream(listFile.c_str());
+    std::string referencesDir;
+
+    //Read reference folder
+    while (!iniFileStream.eof())
+    {
+        getline(iniFileStream, referencesDir);
+
+        if (referencesDir.empty() || referencesDir[0] == '#')
+            continue;
+        else
+            break;
+    }
+
+    //Read scenes
     while (!iniFileStream.eof())
     {
         std::string line;
@@ -153,7 +131,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& references
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
         sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
-        std::string reference = referencesDir + "/" + sceneFromScenesDir + ".reference";
+        std::string reference = listDir + "/" + referencesDir + "/" + sceneFromList + ".reference";
 
 #ifdef WIN32
         // Minimize absolute scene path to avoid MAX_PATH problem
@@ -172,29 +150,29 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& references
 }
 
 template <typename T>
-void RegressionSceneList<T>::collectScenesFromDir(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename)
+void RegressionSceneList<T>::collectScenesFromDir(const std::string& scenesDir, const std::string& listFilename)
 {
     std::vector<std::string> regressionListFiles;
     int error = helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
-    if(error <= 0)
-    {
-        msg_error("RegressionSceneList") << "findFiles failed, error code returned: " << error;
-    }
+//     if(error != 0)
+//     {
+//         msg_error("RegressionSceneList") << "findFiles failed, error code returned: " << error;
+//     }
 
     for (const std::string& regressionListFile : regressionListFiles)
     {
         if ( helper::system::FileSystem::exists(regressionListFile) && helper::system::FileSystem::isFile(regressionListFile) )
         {
-            collectScenesFromList(referencesDir, scenesDir, regressionListFile);
+            collectScenesFromList(scenesDir, regressionListFile);
         }
     }
 }
 
 
 template <typename T>
-void RegressionSceneList<T>::collectScenesFromPaths(const std::string& referencesDir, const std::string& scenesDir, const std::string& listFilename)
+void RegressionSceneList<T>::collectScenesFromPaths(const std::string& scenesDir, const std::string& listFilename)
 {
-    collectScenesFromDir(referencesDir, scenesDir, listFilename); // m_sofaSrcDir should be an input to the test (not an env var)
+    collectScenesFromDir(scenesDir, listFilename); // m_sofaSrcDir should be an input to the test (not an env var)
 }
 
 } // namespace sofa
