@@ -3,8 +3,6 @@
 #include <sofa/helper/system/FileRepository.h>
 #include <sofa/helper/system/FileSystem.h>
 
-using sofa::testing::BaseTest;
-
 #include <sofa/component/playback/ReadState.h>
 #include <sofa/component/playback/WriteState.h>
 #include <sofa/component/playback/ReadTopology.h>
@@ -14,8 +12,6 @@ using sofa::testing::BaseTest;
 
 #include <sofa/simulation/graph/DAGSimulation.h>
 #include <sofa/simulation/graph/SimpleApi.h>
-
-using sofa::testing::BaseSimulationTest;
 
 #include <sofa/core/MechanicalParams.h>
 
