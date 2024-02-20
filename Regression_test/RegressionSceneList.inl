@@ -87,10 +87,14 @@ RegressionSceneList<T>::RegressionSceneList()
 template <typename T>
 void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir, const std::string& listFile)
 {
-    // lire plugin_test/regression_scene_list -> (file,nb time steps,epsilon)
-    // pour toutes les scenes
+    // File structure
+    // - # [comments]
+    // - Relative path to the references
+    // - reference [scene file, nb time steps, epsilon, test under mapping, test only final step]
+
     const std::string listDir = FileSystem::getParentDirectory(listFile);
-    msg_info("Regression_test") << "Parsing " << listFile;
+    const std::string msgHeader = "Regression_test::" + static_cast<T*>(this)->getListType();
+    msg_info(msgHeader) << "Parsing " << listFile;
     // parser le fichier -> (file,nb time steps,epsilon)
     std::ifstream iniFileStream(listFile.c_str());
     std::string referencesDir;
@@ -105,6 +109,52 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         else
             break;
     }
+
+    std::string fullPathReferenceDir = listDir + "/" + referencesDir;
+    // Check if the reference folder does exist
+    if (!referencesDir.empty())
+    {
+        if (!sofa::helper::system::FileSystem::exists(fullPathReferenceDir))
+        {
+            // relative reference path is wrong, check if the user set a env var instead
+            // most common case: regression references are not in the same namespace (aka repository)
+            char* refDirVar = getenv("REGRESSION_REFERENCES_DIR");
+            if (refDirVar == nullptr)
+            {
+                msg_error(msgHeader) << "The reference path does not exist, and the fallback REGRESSION_REFERENCES_DIR is not set.";
+                return;
+            }
+            else
+            {
+                std::string refDirFromVar(refDirVar);
+                // case where REGRESSION_REFERENCES_DIR is absolute
+                if (sofa::helper::system::FileSystem::isAbsolute(refDirFromVar) && sofa::helper::system::FileSystem::exists(refDirFromVar))
+                {
+                    fullPathReferenceDir = refDirFromVar;
+                }
+                else if(sofa::helper::system::FileSystem::exists(listDir + "/" + refDirFromVar))// case where REGRESSION_REFERENCES_DIR is relative
+                {
+                    fullPathReferenceDir = listDir + "/" + refDirFromVar;
+                }
+                else // all cases are not compliant, quitting
+                {
+                    msg_error(msgHeader) << "The reference path does not exist, and the fallback REGRESSION_REFERENCES_DIR is set but erroneous.";
+                    return;
+                }
+            }
+        }
+        else
+        {
+            ; // OK
+        }
+    }
+    else
+    {
+        msg_error(msgHeader) << "No actual content in the list files (first not commented line should be the relative path of your reference).";
+        return;
+    }
+
+    msg_info(msgHeader) << "Will use the references from " << fullPathReferenceDir;
 
     //Read scenes
     while (!iniFileStream.eof())
@@ -132,7 +182,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
         sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
-        std::string reference = listDir + "/" + referencesDir + "/" + sceneFromList + ".reference";
+        std::string reference = fullPathReferenceDir + "/" + sceneFromList + ".reference";
 
 #ifdef WIN32
         // Minimize absolute scene path to avoid MAX_PATH problem
