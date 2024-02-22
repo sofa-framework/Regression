@@ -11,7 +11,7 @@
 #include <sofa/component/playback/CompareTopology.h>
 
 #include <sofa/simulation/graph/DAGSimulation.h>
-#include <sofa/simulation/graph/SimpleApi.h>
+#include <sofa/simpleapi/SimpleApi.h>
 
 #include <sofa/core/MechanicalParams.h>
 
