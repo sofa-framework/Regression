@@ -204,11 +204,7 @@ template <typename T>
 void RegressionSceneList<T>::collectScenesFromDir(const std::string& scenesDir, const std::string& listFilename)
 {
     std::vector<std::string> regressionListFiles;
-    int error = helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
-//     if(error != 0)
-//     {
-//         msg_error("RegressionSceneList") << "findFiles failed, error code returned: " << error;
-//     }
+    helper::system::FileSystem::findFiles(scenesDir, regressionListFiles, listFilename, 5);
 
     for (const std::string& regressionListFile : regressionListFiles)
     {
