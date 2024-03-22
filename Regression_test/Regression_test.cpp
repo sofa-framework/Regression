@@ -199,8 +199,7 @@ void TopologyRegression_test::runTestImpl(RegressionSceneData data, sofa::simula
 
 
 
-
-
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(StateRegression_test);
 
 /// Create one instance of StateRegression_test per scene in stateRegressionSceneList.m_scenes list
 /// Note: if N differents TEST_P(StateRegression_test, test_N) are created this will create M x N gtest. M being the number of values in the list.
@@ -215,6 +214,7 @@ TEST_P(StateRegression_test, sceneTest)
     runTest(GetParam());
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TopologyRegression_test);
 
 //// Create one instance or TopologyRegression_test per scene in topologyRegressionSceneList.m_scenes
 INSTANTIATE_TEST_SUITE_P(Regression_test,
