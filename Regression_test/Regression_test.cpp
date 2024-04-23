@@ -40,8 +40,6 @@ void BaseRegression_test::runTest(RegressionSceneData data)
 
     sofa::simpleapi::importPlugin("Sofa.Component");
 
-    simulation::Simulation* simulation = simulation::getSimulation();
-
     // Load the scene
     sofa::simulation::Node::SPtr root = sofa::simulation::node::load(data.m_fileScenePath.c_str());
 
