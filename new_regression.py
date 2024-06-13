@@ -6,6 +6,19 @@ import Sofa
 
 debugInfo = True
 
+def isSimulated(node):
+    if (node.hasODESolver()):
+        return True
+
+    # if no Solver in current node, check parent nodes
+    for parent in node.parents:
+        solverFound = isSimulated(parent)
+        if (solverFound):
+            return True
+        
+    return False
+
+
 class RegressionSceneData:
     def __init__(self, fileScenePath: str = None, fileRefPath: str = None, steps = 1000, 
                  epsilon = 0.0001, mecaInMapping = True, dumpOnlyLastStep = False):
@@ -29,20 +42,46 @@ class RegressionSceneData:
         self.epsilon = epsilon
         self.mecaInMapping = mecaInMapping
         self.dumpOnlyLastStep = dumpOnlyLastStep
+        self.mecaObjs = []
 
     def printInfo(self):
         print("Test scene: " + self.fileScenePath + " vs " + self.fileRefPath + " using: " + self.steps
               + " " + self.epsilon)
+    
+    def printMecaObjs(self):
+        print ("# Nbr Meca: " + str(len(self.mecaObjs)))
+        counter = 0
+        for mecaObj in self.mecaObjs:
+            filename = self.fileRefPath + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
+            
+            counter = counter+1
+            print ("# toRead: " + filename)
+
+    def parseNode(self, node, level = 0):
+        for child in node.children:
+            mstate = child.getMechanicalState()
+            if (mstate):
+                if (isSimulated(child)):
+                    self.mecaObjs.append(mstate)
+            
+            self.parseNode(child, level+1)
+    
+    # def addCompareState(self):
+    #     for mecaObj in self.mecaObjs:
+    #         mecaObj.getContext().addObject('CompareState')
+    #         print ("# toRead: " + mecaObj.name.value)
+    
 
 
 class RegressionSceneList:
     def __init__(self, filePath):
         self.filePath = filePath
         self.fileDir = os.path.dirname(filePath)
-        self.scenes = []
+        self.scenes = [] # List<RegressionSceneData>
 
     def processFile(self):
         print("### Processing Regression file: " + self.filePath)
+        
         with open(self.filePath, 'r') as thefile:
             data = thefile.readlines()
         thefile.close()
@@ -57,22 +96,24 @@ class RegressionSceneList:
                 continue
 
             if (count == 0):
-                print("Line ref: " + line)
-                self.refDirPath = line
+                print("Line ref: " + values[0])
+                self.refDirPath = os.path.join(self.fileDir, values[0])
+                self.refDirPath = os.path.abspath(self.refDirPath)
                 count = count + 1
                 continue
 
-            
 
             if (len(values) < 4):
                 print ("line read has more than 5 arguments: " + str(len(values)) + " -> " + line)
                 continue
 
             fullFilePath = os.path.join(self.fileDir, values[0])
+            fullRefFilePath = os.path.join(self.refDirPath, values[0])
+
             if (len(values) == 5):
-                sceneData = RegressionSceneData(fullFilePath, self.refDirPath, values[1], values[2], values[3], values[4])
+                sceneData = RegressionSceneData(fullFilePath, fullRefFilePath, values[1], values[2], values[3], values[4])
             elif (len(values) == 4):
-                sceneData = RegressionSceneData(fullFilePath, self.refDirPath, values[1], values[2], values[3], False)
+                sceneData = RegressionSceneData(fullFilePath, fullRefFilePath, values[1], values[2], values[3], False)
             
             #sceneData.printInfo()
             self.scenes.append(sceneData)
@@ -93,7 +134,7 @@ class RegressionSceneList:
 
 class RegressionProgram:
     def __init__(self, inputFolder):
-        self.sceneSets = []
+        self.sceneSets = [] # List <RegressionSceneList>
 #def findRegressionFiles(inputFolder):
         for root, dirs, files in os.walk(inputFolder):
             for file in files:
@@ -154,16 +195,7 @@ def parse_args():
     return args
 
 
-#def isSimulated(mstate):
-    
 
-def parseNode(node, level = 0):
-    for child in node.children:
-        print (str(level) + " -> " + child.name.value)
-        mstate = child.getMechanicalState()
-        if (mstate):
-            print ("   -> " + mstate.name.value)
-        parseNode(child, level+1)
         
 
 if __name__ == '__main__':
@@ -177,10 +209,15 @@ if __name__ == '__main__':
 
     for i in range(0, 4):
         firstSet = prog.sceneSets[1]
-        print(firstSet.scenes[i].fileScenePath)
-        rootNode = Sofa.Simulation.load(firstSet.scenes[i].fileScenePath)
-        print("######## scene: " + str(firstSet.scenes[i].fileScenePath))
-        parseNode(rootNode, 0)
+        sceneData = firstSet.scenes[i]
+        print(sceneData.fileScenePath)
+        rootNode = Sofa.Simulation.load(sceneData.fileScenePath)
+        print("######## scene: " + str(sceneData.fileScenePath))
+        sceneData.parseNode(rootNode, 0)
+        sceneData.printInfo()
+        sceneData.printMecaObjs()
+
+    #node = mstate.getContext()
 
     # if (!createReference)
     # {
