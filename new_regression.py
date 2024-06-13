@@ -154,6 +154,18 @@ def parse_args():
     return args
 
 
+#def isSimulated(mstate):
+    
+
+def parseNode(node, level = 0):
+    for child in node.children:
+        print (str(level) + " -> " + child.name.value)
+        mstate = child.getMechanicalState()
+        if (mstate):
+            print ("   -> " + mstate.name.value)
+        parseNode(child, level+1)
+        
+
 if __name__ == '__main__':
     # 1- Parse arguments to get folder path
     args = parse_args()
@@ -163,11 +175,12 @@ if __name__ == '__main__':
     
     print ("### Number of sets: " + str(len(prog.sceneSets)))
 
-    firstSet = prog.sceneSets[1]
-    print(firstSet.scenes[0].fileScenePath)
-    node = Sofa.Simulation.load(firstSet.scenes[0].fileScenePath)
-
-
+    for i in range(0, 4):
+        firstSet = prog.sceneSets[1]
+        print(firstSet.scenes[i].fileScenePath)
+        rootNode = Sofa.Simulation.load(firstSet.scenes[i].fileScenePath)
+        print("######## scene: " + str(firstSet.scenes[i].fileScenePath))
+        parseNode(rootNode, 0)
 
     # if (!createReference)
     # {
