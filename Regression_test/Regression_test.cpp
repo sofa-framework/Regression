@@ -89,7 +89,9 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
         std::ofstream filestream(data.m_fileRefPath.c_str());
         filestream.close();
 
-        sofa::component::playback::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance());
+        sofa::component::playback::WriteStateCreator writeVisitor(sofa::core::ExecParams::defaultInstance(), data.m_fileRefPath,
+            true, false, false, data.m_mecaInMapping);
+
 
         if (data.m_dumpOnlyLastStep)
         {
@@ -98,8 +100,7 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
             times.push_back(root->getDt() * (data.m_steps - 1));
             writeVisitor.setExportTimes(times);
         }
-        writeVisitor.setCreateInMapping(data.m_mecaInMapping);
-        writeVisitor.setSceneName(data.m_fileRefPath);
+        //writeVisitor.setPeriod(1.0);
         writeVisitor.execute(root.get());
 
         sofa::component::playback::WriteStateActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
