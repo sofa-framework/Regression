@@ -100,7 +100,10 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
             times.push_back(root->getDt() * (data.m_steps - 1));
             writeVisitor.setExportTimes(times);
         }
-        //writeVisitor.setPeriod(1.0);
+        else if (data.m_stepPeriod != 0.0)
+        {
+            writeVisitor.setPeriod(root->getDt() * data.m_stepPeriod);
+        }
         writeVisitor.execute(root.get());
 
         sofa::component::playback::WriteStateActivator v_write(sofa::core::ExecParams::defaultInstance() /* PARAMS FIRST */, true);
