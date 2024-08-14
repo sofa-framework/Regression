@@ -87,7 +87,8 @@ void StateRegression_test::runTestImpl(RegressionSceneData data, simulation::Nod
     }
     else // create reference
     {
-        msg_error("StateRegression_test::runTestImpl") << "Non existing reference created: " << data.m_fileRefPath;
+        msg_error("StateRegression_test::runTestImpl") << "Non existing reference created: " << data.m_fileRefPath
+                                                       << "\nIgnore this error if you are willingly generating a new reference";
 
         // just to create an empty file to know it is already init
         std::ofstream filestream(data.m_fileRefPath.c_str());
