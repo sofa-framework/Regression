@@ -2,6 +2,7 @@ import glob, os
 import argparse
 import sys
 import Sofa
+import SofaRuntime
 import numpy as np
 from tqdm import tqdm
 from json import JSONEncoder
@@ -376,17 +377,18 @@ def parse_args():
 if __name__ == '__main__':
     # 1- Parse arguments to get folder path
     args = parse_args()
-
     # 2- Process file
-    prog = RegressionProgram(args.input)
+    regProg = RegressionProgram(args.input)
+    SofaRuntime.importPlugin("SofaPython3")
 
-
-    print ("### Number of sets: " + str(len(prog.sceneSets)))
+    print ("### Number of sets: " + str(len(regProg.sceneSets)))
     if (args.writeMode):
         #prog.writeAllSetsReferences()
-        prog.writeSetReferences(1)
+        #regProg.writeSetsReferences(0)
     else:
         readJson()
-        prog.compareSetsReferences(1)
-    print ("### Number of sets: Done ")
+        regProg.compareSetsReferences(0)
+    print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
+    sys.exit()
+
     
