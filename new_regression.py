@@ -96,7 +96,7 @@ class RegressionSceneData:
         for mecaObj in self.mecaObjs:
             filename = self.fileRefPath + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
             counter = counter+1
-            print ("# toRead: " + filename)
+            print ("# File attached: " + filename)
 
 
     def parseNode(self, node, level = 0):
@@ -129,9 +129,9 @@ class RegressionSceneData:
 
     def loadScene(self):
         self.rootNode = Sofa.Simulation.load(self.fileScenePath)
-        self.rootNode.addObject('RequiredPlugin', pluginName="SofaValidation")
+        #self.rootNode.addObject('RequiredPlugin', pluginName="SofaValidation")
         Sofa.Simulation.init(self.rootNode)
-
+        
         # prepare ref files per mecaObjs:
         self.parseNode(self.rootNode, 0)
         counter = 0
@@ -139,33 +139,44 @@ class RegressionSceneData:
             _filename = self.fileRefPath + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json"
             self.fileNames.append(_filename)
             counter = counter+1
+        
 
 
     def writeReferences(self):
         pbarSimu = tqdm(total=10) #self.steps
         pbarSimu.set_description("Simulate: " + self.fileScenePath)
+        
+        nbrMeca = len(self.mecaObjs)
+        numpyData = [] # List<map>
+        for mecaId in range(0, nbrMeca):
+            mecaDofs = {}
+            numpyData.append(mecaDofs)
 
-        counter = 0
-        for mecaObj in self.mecaObjs:
-            #numpyData = {"T": 0, "X": self.mecaObjs[0].position.value}
-            numpyData = {0: mecaObj.position.value}
-            #numpyData.append({"T": 0, "X": self.mecaObjs[0].position.value})
-            for j in range(0, 10): # self.steps
-                Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
-                #numpyData.append({"T": str(self.rootNode.dt.value*(j+1)), "X": self.mecaObjs[0].position.value})
-                numpyData[self.rootNode.dt.value*(j+1)] = mecaObj.position.value
-                pbarSimu.update(1)
-            pbarSimu.close()
-
+        counterStep = 0
+        nbrStep = 1000
+        for step in range(0, nbrStep):
+            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             
+            if (counterStep == 499):
+                for mecaId in range(0, nbrMeca):
+                    numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
+                    #print(self.mecaObjs[mecaId].position.value[820])
+                counterStep = 0
+            
+            counterStep = counterStep + 1
+            pbarSimu.update(1)
+        pbarSimu.close()
 
-            with open(self.fileNames[counter], "w") as write_file:
-                json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
-                json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
-            print("Done writing: " + self.fileNames[counter])
+        for mecaId in range(0, nbrMeca):
+            #for key in numpyData[mecaId]:
+            #    print("key: %s , value: %s" % (key, numpyData[mecaId][key][820]))
+            with open(self.fileNames[mecaId], "w") as write_file:
+                json.dump(numpyData[mecaId], write_file, cls=NumpyArrayEncoder)
+        
+            print("Done writing: " + self.fileNames[mecaId])
 
-            counter = counter+1
-
+        Sofa.Simulation.unload(self.rootNode)
+        
 
     def compareReferences(self):
         pbarSimu = tqdm(total=10) #self.steps
@@ -269,17 +280,17 @@ class RegressionSceneList:
 
     def writeReferences(self, idScene):
         self.scenes[idScene].loadScene()
-        #self.scenes[idScene].printMecaObjs()
+        self.scenes[idScene].printMecaObjs()
         self.scenes[idScene].writeReferences()
 
     def writeAllReferences(self):
         nbrScenes = len(self.scenes)
-        pbarScenes = tqdm(total=nbrScenes)
-        pbarScenes.set_description("Write all scenes from: " + self.filePath)
+        #pbarScenes = tqdm(total=nbrScenes)
+        #pbarScenes.set_description("Write all scenes from: " + self.filePath)
         for i in range(0, nbrScenes):
             self.writeReferences(i)
-            pbarScenes.update(1)
-        pbarScenes.close()
+            #pbarScenes.update(1)
+        #pbarScenes.close()
 
 
     def compareReferences(self, idScene):
@@ -296,6 +307,7 @@ class RegressionSceneList:
         pbarScenes.close()
 
 
+
 class RegressionProgram:
     def __init__(self, inputFolder):
         self.sceneSets = [] # List <RegressionSceneList>
@@ -310,11 +322,9 @@ class RegressionProgram:
                     sceneList.processFile()
                     self.sceneSets.append(sceneList)
 
-    def writeSetReferences(self, idSet = 0):
-        sceneData = self.sceneSets[idSet]
-        #sceneData.writeAllReferences()
-        sceneData.writeReferences(0)
-        sceneData.writeReferences(1)
+    def writeSetsReferences(self, idSet = 0):
+        sceneList = self.sceneSets[idSet]
+        sceneList.writeAllReferences()
     
     def writeAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
@@ -327,10 +337,10 @@ class RegressionProgram:
 
 
     def compareSetsReferences(self, idSet = 0):
-        sceneData = self.sceneSets[idSet]
-        #sceneData.writeAllReferences()
-        sceneData.compareReferences(0)
-        sceneData.compareReferences(1)
+        sceneList = self.sceneSets[idSet]
+        #sceneList.writeAllReferences()
+        sceneList.compareReferences(0)
+        sceneList.compareReferences(1)
 
     def compareAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
@@ -385,6 +395,7 @@ if __name__ == '__main__':
     if (args.writeMode):
         #prog.writeAllSetsReferences()
         #regProg.writeSetsReferences(0)
+        exportJson()
     else:
         readJson()
         regProg.compareSetsReferences(0)
