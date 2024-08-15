@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 from json import JSONEncoder
 import json
-import zlib
+import gzip
 
 debugInfo = True
 
@@ -38,16 +38,27 @@ def exportJson():
     # Serialization
     numpyData = {"arrayOne": numpyArrayOne, "arrayTwo": numpyArrayTwo}
     print("serialize NumPy array into JSON and write into a file")
-    with open("numpyData.json", "w") as write_file:
-        json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
+    with gzip.open("numpyData.json.gz", 'w') as zipfile:
+        for key in numpyData:
+            print(numpyData[key])
+
+        #write_file.write(json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4))
+        #res = json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4)
+        #print(res)
+        #json.dump(numpyData, zipfile, cls=NumpyArrayEncoder)
+        zipfile.write(json.dumps(numpyData, cls=NumpyArrayEncoder).encode('utf-8'))
+    
     print("Done writing serialized NumPy array into file")
 
 def readJson():
     # Deserialization
     print("Started Reading JSON file")
-    with open("numpyData.json", "r") as read_file:
+    with gzip.open("numpyData.json.gz", 'r') as zipfile:
+
+    #with open("numpyData.json", "r") as read_file:
         print("Converting JSON encoded data into Numpy array")
-        decodedArray = json.load(read_file)
+        decodedArray = json.loads(zipfile.read().decode('utf-8'))
+        #decodedArray = json.load(zipfile)
 
         finalNumpyArrayOne = np.asarray(decodedArray["arrayOne"])
         print("NumPy Array One")
@@ -136,7 +147,7 @@ class RegressionSceneData:
         self.parseNode(self.rootNode, 0)
         counter = 0
         for mecaObj in self.mecaObjs:
-            _filename = self.fileRefPath + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json"
+            _filename = self.fileRefPath + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
             self.fileNames.append(_filename)
             counter = counter+1
         
@@ -170,8 +181,9 @@ class RegressionSceneData:
         for mecaId in range(0, nbrMeca):
             #for key in numpyData[mecaId]:
             #    print("key: %s , value: %s" % (key, numpyData[mecaId][key][820]))
-            with open(self.fileNames[mecaId], "w") as write_file:
-                json.dump(numpyData[mecaId], write_file, cls=NumpyArrayEncoder)
+            with gzip.open(self.fileNames[mecaId], "w") as write_file:
+                #json.dump(numpyData[mecaId], write_file, cls=NumpyArrayEncoder)
+                write_file.write(json.dumps(numpyData[mecaId], cls=NumpyArrayEncoder).encode('utf-8'))
         
             print("Done writing: " + self.fileNames[mecaId])
 
@@ -394,11 +406,11 @@ if __name__ == '__main__':
     print ("### Number of sets: " + str(len(regProg.sceneSets)))
     if (args.writeMode):
         #prog.writeAllSetsReferences()
-        #regProg.writeSetsReferences(0)
-        exportJson()
+        regProg.writeSetsReferences(0)
+        #exportJson()
     else:
         readJson()
-        regProg.compareSetsReferences(0)
+        #regProg.compareSetsReferences(0)
     print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
     sys.exit()
 
