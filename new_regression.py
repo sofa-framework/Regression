@@ -68,6 +68,7 @@ def readJson():
         print(finalNumpyArrayTwo)
 
 
+
 class RegressionSceneData:
     def __init__(self, fileScenePath: str = None, fileRefPath: str = None, steps = 1000, 
                  epsilon = 0.0001, mecaInMapping = True, dumpOnlyLastStep = False):
@@ -87,8 +88,8 @@ class RegressionSceneData:
         """
         self.fileScenePath = fileScenePath
         self.fileRefPath = fileRefPath
-        self.steps = steps
-        self.epsilon = epsilon
+        self.steps = int(steps)
+        self.epsilon = float(epsilon)
         self.mecaInMapping = mecaInMapping
         self.dumpOnlyLastStep = dumpOnlyLastStep
         self.mecaObjs = []
@@ -140,7 +141,6 @@ class RegressionSceneData:
 
     def loadScene(self):
         self.rootNode = Sofa.Simulation.load(self.fileScenePath)
-        #self.rootNode.addObject('RequiredPlugin', pluginName="SofaValidation")
         Sofa.Simulation.init(self.rootNode)
         
         # prepare ref files per mecaObjs:
@@ -154,8 +154,9 @@ class RegressionSceneData:
 
 
     def writeReferences(self):
-        pbarSimu = tqdm(total=1000) #self.steps
-        pbarSimu.set_description("Simulate: " + self.fileScenePath)
+        
+        #pbarSimu = tqdm(total=self.steps)
+        #pbarSimu.set_description("Simulate: " + self.fileScenePath)
         
         nbrMeca = len(self.mecaObjs)
         numpyData = [] # List<map>
@@ -164,43 +165,36 @@ class RegressionSceneData:
             numpyData.append(mecaDofs)
 
         counterStep = 0
-        nbrStep = 1000
-        for step in range(0, nbrStep):
+        for step in range(0, self.steps):
             Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             
             if (counterStep == 499):
                 for mecaId in range(0, nbrMeca):
                     numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
-                    #print(self.mecaObjs[mecaId].position.value[820])
                 counterStep = 0
             
             counterStep = counterStep + 1
-            pbarSimu.update(1)
-        pbarSimu.close()
+            #pbarSimu.update(1)
+        #pbarSimu.close()
 
         for mecaId in range(0, nbrMeca):
             #for key in numpyData[mecaId]:
             #    print("key: %s , value: %s" % (key, numpyData[mecaId][key][820]))
             with gzip.open(self.fileNames[mecaId], "w") as write_file:
-                #json.dump(numpyData[mecaId], write_file, cls=NumpyArrayEncoder)
                 write_file.write(json.dumps(numpyData[mecaId], cls=NumpyArrayEncoder).encode('utf-8'))
-        
-            print("Done writing: " + self.fileNames[mecaId])
 
         Sofa.Simulation.unload(self.rootNode)
         
 
     def compareReferences(self):
-        #pbarSimu = tqdm(total=1000) #self.steps
-        #pbarSimu.set_description("compareReferences: " + self.fileScenePath)
+        pbarSimu = tqdm(total=float(self.steps))
+        pbarSimu.set_description("compareReferences: " + self.fileScenePath)
         
         nbrMeca = len(self.mecaObjs)
         numpyData = [] # List<map>
         keyframes = []
         for mecaId in range(0, nbrMeca):
             with gzip.open(self.fileNames[mecaId], 'r') as zipfile:
-                print("Converting JSON encoded data into Numpy array")
-
                 decodedArray = json.loads(zipfile.read().decode('utf-8'))
                 numpyData.append(decodedArray)
 
@@ -208,12 +202,9 @@ class RegressionSceneData:
                     for key in decodedArray:
                         keyframes.append(float(key))
                     
-        print("keyframes: " + str(keyframes))
-
         frameStep = 0
         nbrFrames = len(keyframes)
-        nbrStep = 1000
-        for step in range(0, nbrStep):
+        for step in range(0, self.steps):
             Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             simuTime = self.rootNode.dt.value*(step)
             #print ("time: " + str(simuTime))
@@ -234,50 +225,8 @@ class RegressionSceneData:
                     print ("exit comparison")
                     return
             
-            #pbarSimu.update(1)
-        #pbarSimu.close()
-
-
-                #finalNumpyArrayOne = np.asarray(decodedArray["arrayOne"])
-        
-
-        # counter = 0
-        # for mecaObj in self.mecaObjs:
-        #     #numpyData = {"T": 0, "X": self.mecaObjs[0].position.value}
-        #     numpyData = []
-        #     numpyData.append({"T": 0, "X": self.mecaObjs[0].position.value})
-        #     for j in range(0, 10): # self.steps
-        #         Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
-        #         numpyData.append({"T": str(self.rootNode.dt.value*(j+1)), "X": self.mecaObjs[0].position.value})
-        #         pbarSimu.update(1)
-        #     pbarSimu.close()
-
-            
-
-        #     with open(self.fileNames[counter], "w") as write_file:
-        #         json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
-        #         json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
-        #     print("Done writing: " + self.fileNames[counter])
-
-        #     counter = counter+1
-
-        #print ("dt: " + str(numpyData))
-        # export Data        
-        # counter = 0
-        # for mecaObj in self.mecaObjs:
-        #     dofs = mecaObj.position.value
-
-        #     self.mins.append(np.min(dofs, axis=0))
-        #     self.maxs.append(np.max(dofs, axis=0))
-             
-        #     #print ("dof: " + str(len(dofs)) + " -> [" + str(self.mins[counter]) + str(self.maxs[counter]) + "]")
-        #     # Serialization
-        #     #numpyData = {"dofs": dofs}
-        #     print ("writting: " + self.fileNames[counter])
-        #     # with open(self.fileNames[counter], "w") as write_file:
-        #     #     json.dump(numpyData, write_file, cls=NumpyArrayEncoder)
-        #     # print("Done writing: " + self.fileNames[counter])
-        #     counter = counter + 1
+            pbarSimu.update(1)
+        pbarSimu.close()
 
 
 class RegressionSceneList:
@@ -326,9 +275,11 @@ class RegressionSceneList:
             
         print("## nbrScenes: " + str(len(self.scenes)))
 
-    def writeReferences(self, idScene):
+    def writeReferences(self, idScene, printLog = False):
         self.scenes[idScene].loadScene()
-        #self.scenes[idScene].printMecaObjs()
+        if (printLog is True):
+            self.scenes[idScene].printMecaObjs()
+            
         self.scenes[idScene].writeReferences()
 
     def writeAllReferences(self):
@@ -347,12 +298,12 @@ class RegressionSceneList:
         
     def compareAllReferences(self):
         nbrScenes = len(self.scenes)
-        #pbarScenes = tqdm(total=nbrScenes)
-        #pbarScenes.set_description("Compare all scenes from: " + self.filePath)
+        pbarScenes = tqdm(total=nbrScenes)
+        pbarScenes.set_description("Compare all scenes from: " + self.filePath)
         for i in range(0, nbrScenes):
             self.compareReferences(i)
-        #    pbarScenes.update(1)
-        #pbarScenes.close()
+            pbarScenes.update(1)
+        pbarScenes.close()
 
 
 
@@ -376,12 +327,12 @@ class RegressionProgram:
     
     def writeAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
-        pbarSets = tqdm(total=nbrSets)
-        pbarSets.set_description("Write All sets")
+        #pbarSets = tqdm(total=nbrSets)
+        #pbarSets.set_description("Write All sets")
         for i in range(0, nbrSets):
-            self.writeSetReferences(i)
-            pbarSets.update(1)
-        pbarSets.close()
+            self.writeSetsReferences(i)
+            #pbarSets.update(1)
+        #pbarSets.close()
 
 
     def compareSetsReferences(self, idSet = 0):
@@ -391,9 +342,9 @@ class RegressionProgram:
     def compareAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
         pbarSets = tqdm(total=nbrSets)
-        pbarSets.set_description("Write All sets")
+        pbarSets.set_description("Compare All sets")
         for i in range(0, nbrSets):
-            self.compareReferences(i)
+            self.compareSetsReferences(i)
             pbarSets.update(1)
         pbarSets.close()
 
@@ -439,13 +390,11 @@ if __name__ == '__main__':
 
     print ("### Number of sets: " + str(len(regProg.sceneSets)))
     if (args.writeMode):
-        #prog.writeAllSetsReferences()
-        regProg.writeSetsReferences(0)
-        #exportJson()
+        regProg.writeAllSetsReferences()
     else:
-        #readJson()
-        regProg.compareSetsReferences(0)
+        regProg.compareAllSetsReferences(0)
     print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
+   
     sys.exit()
 
     
