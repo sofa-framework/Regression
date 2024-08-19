@@ -88,7 +88,7 @@ class RegressionSceneData:
         """
         self.fileScenePath = fileScenePath
         self.fileRefPath = fileRefPath
-        self.steps = int(steps) + 1
+        self.steps = int(steps)
         self.epsilon = float(epsilon)
         self.mecaInMapping = mecaInMapping
         self.dumpNumberStep = int(dumpNumberStep)
@@ -96,6 +96,9 @@ class RegressionSceneData:
         self.fileNames = []
         self.mins = []
         self.maxs = []
+        self.totalError = []
+        self.errorByDof = []
+        self.nbrTestedFrame = 0
 
     def printInfo(self):
         print("Test scene: " + self.fileScenePath + " vs " + self.fileRefPath + " using: " + self.steps
@@ -165,22 +168,19 @@ class RegressionSceneData:
 
         
         counterStep = 0
-        moduloStep = (self.steps-1) / self.dumpNumberStep
+        moduloStep = (self.steps) / self.dumpNumberStep
         
-        # export rest position:
-        for mecaId in range(0, nbrMeca):
-            numpyData[mecaId][0.0] = np.copy(self.mecaObjs[mecaId].position.value)
-
-        for step in range(0, self.steps):
-            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
-            
-            #print("step: " + str(step) + " | counterStep: " + str(counterStep) + " | moduloStep: " + str(moduloStep) + " | dt: " + str(self.rootNode.dt.value*(step)))
-            if (counterStep >= moduloStep or step == self.steps - 1):
+        for step in range(0, self.steps + 1):
+            # export rest position, final position + modulo steps:
+            if (step == 0 or counterStep >= moduloStep or step == self.steps):                
+                #print("step: " + str(step) + " | counterStep: " + str(counterStep) + " | moduloStep: " + str(moduloStep) + " | dt: " + str(self.rootNode.dt.value*(step)))
                 for mecaId in range(0, nbrMeca):
                     numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
                 counterStep = 0
             
+            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             counterStep = counterStep + 1
+                        
             pbarSimu.update(1)
         pbarSimu.close()
 
@@ -200,6 +200,9 @@ class RegressionSceneData:
         nbrMeca = len(self.mecaObjs)
         numpyData = [] # List<map>
         keyframes = []
+        self.totalError = []
+        self.errorByDof = []
+        
         for mecaId in range(0, nbrMeca):
             with gzip.open(self.fileNames[mecaId], 'r') as zipfile:
                 decodedArray = json.loads(zipfile.read().decode('utf-8'))
@@ -208,30 +211,49 @@ class RegressionSceneData:
                 if (mecaId is 0):
                     for key in decodedArray:
                         keyframes.append(float(key))
+            
+            self.totalError.append(0.0)
+            self.errorByDof.append(0.0)
+
                     
         frameStep = 0
-        nbrFrames = len(keyframes)
-        for step in range(0, self.steps):
-            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
+        nbrFrames = len(keyframes)        
+        self.nbrTestedFrame = 0
+        for step in range(0, self.steps + 1):
             simuTime = self.rootNode.dt.value*(step)
-            #print ("time: " + str(simuTime))
-            if (simuTime == keyframes[frameStep]):
-                print("### Found same time: " + str(keyframes[frameStep]))
 
+            if (simuTime == keyframes[frameStep]):
                 for mecaId in range(0, nbrMeca):
                     mecaDofs = np.copy(self.mecaObjs[mecaId].position.value)
                     dataRef = np.asarray(numpyData[mecaId][str(keyframes[frameStep])]) - mecaDofs
                     
-                    dist = np.linalg.norm(dataRef)
-                    print("dist: " + str(dist))
+                    # Compute total distance between the 2 sets
+                    fullDist = np.linalg.norm(dataRef)
+                    errorByDof = fullDist / float(dataRef.size)
+                    
+                    #print (str(step) + " | fullDist: " + str(fullDist) + " | errorByDof: " + str(errorByDof) + " | nbrDofs: " + str(dataRef.size)) 
+                    self.totalError[mecaId] = self.totalError[mecaId] + fullDist
+                    self.errorByDof[mecaId] = self.errorByDof[mecaId] + errorByDof
 
                 frameStep = frameStep + 1
+                self.nbrTestedFrame = self.nbrTestedFrame + 1
+                
+                # security exit if simulation steps exceed nbrFrames
                 if (frameStep == nbrFrames):
-                    print ("exit comparison")
-                    return
+                    break
+            
+            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             
             pbarSimu.update(1)
         pbarSimu.close()
+        
+        for mecaId in range(0, nbrMeca):
+            if (self.totalError[mecaId] > self.epsilon):
+                print("### " + self.fileScenePath + " | Total error exceed threshold for at least one MechanicalObject: " + str(self.totalError) + " Error by Dofs: " + str(self.errorByDof))
+                return False
+        
+        print ("### " + self.fileScenePath + " | Number of key frames compared without error: " + str(self.nbrTestedFrame))
+        return True
 
 
 class RegressionSceneList:
@@ -239,6 +261,14 @@ class RegressionSceneList:
         self.filePath = filePath
         self.fileDir = os.path.dirname(filePath)
         self.scenes = [] # List<RegressionSceneData>
+        self.nbrErrors = 0
+
+
+    def getNbrScenes(self):
+        return len(self.scenes)
+    
+    def getNbrErrors(self):
+        return self.nbrErrors
 
     def processFile(self):
         print("### Processing Regression file: " + self.filePath)
@@ -300,7 +330,9 @@ class RegressionSceneList:
 
     def compareReferences(self, idScene):
         self.scenes[idScene].loadScene()
-        self.scenes[idScene].compareReferences()
+        result = self.scenes[idScene].compareReferences()
+        if (result == False):
+            self.nbrErrors = self.nbrErrors + 1
         
     def compareAllReferences(self):
         nbrScenes = len(self.scenes)
@@ -329,6 +361,13 @@ class RegressionProgram:
 
                     sceneList.processFile()
                     self.sceneSets.append(sceneList)
+
+    def nbrErrorInSets(self):
+        nbrErrors = 0
+        nbrSets = len(self.sceneSets)
+        for sceneList in self.sceneSets:
+            nbrErrors = nbrErrors + sceneList.getNbrErrors()
+        return nbrErrors
 
     def writeSetsReferences(self, idSet = 0):
         sceneList = self.sceneSets[idSet]
@@ -384,9 +423,9 @@ def parse_args():
     
     parser.add_argument(
         "--writeRef",
-        dest="writeMode",
-        default=False,
-        help='If true, will generate new reference files'
+        dest="writeMode",      
+        help='If true, will generate new reference files',
+        type=int
     )
     
     args = parser.parse_args()
@@ -404,14 +443,18 @@ if __name__ == '__main__':
     regProg = RegressionProgram(args.input)
     SofaRuntime.importPlugin("SofaPython3")
 
-    print ("### Number of sets: " + str(len(regProg.sceneSets)))
     nbrScenes = 0
-    if (args.writeMode is True):
+    writeMode = bool(args.writeMode)
+
+    if writeMode is True:
         nbrScenes = regProg.writeAllSetsReferences()
     else:
         nbrScenes = regProg.compareAllSetsReferences()
+
     print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
     print ("### Number of scenes Done:  " + str(nbrScenes))
+    if writeMode is False:
+        print ("### Number of scenes failed:  " + str(regProg.nbrErrorInSets()))
    
     sys.exit()
 
