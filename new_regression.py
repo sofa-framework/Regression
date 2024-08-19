@@ -71,7 +71,7 @@ def readJson():
 
 class RegressionSceneData:
     def __init__(self, fileScenePath: str = None, fileRefPath: str = None, steps = 1000, 
-                 epsilon = 0.0001, mecaInMapping = True, dumpOnlyLastStep = False):
+                 epsilon = 0.0001, mecaInMapping = True, dumpNumberStep = 1):
         """
         /// Path to the file scene to test
         std::string m_fileScenePath;
@@ -84,14 +84,14 @@ class RegressionSceneData:
         /// Option to test mechanicalObject in Node containing a Mapping (true will test them)
         bool m_mecaInMapping;
         /// Option to compare mechanicalObject dof position at each timestep
-        bool m_dumpOnlyLastStep;    
+        bool m_dumpNumberStep;    
         """
         self.fileScenePath = fileScenePath
         self.fileRefPath = fileRefPath
-        self.steps = int(steps)
+        self.steps = int(steps) + 1
         self.epsilon = float(epsilon)
         self.mecaInMapping = mecaInMapping
-        self.dumpOnlyLastStep = dumpOnlyLastStep
+        self.dumpNumberStep = int(dumpNumberStep)
         self.mecaObjs = []
         self.fileNames = []
         self.mins = []
@@ -154,9 +154,8 @@ class RegressionSceneData:
 
 
     def writeReferences(self):
-        
-        #pbarSimu = tqdm(total=self.steps)
-        #pbarSimu.set_description("Simulate: " + self.fileScenePath)
+        pbarSimu = tqdm(total=self.steps)
+        pbarSimu.set_description("Simulate: " + self.fileScenePath)
         
         nbrMeca = len(self.mecaObjs)
         numpyData = [] # List<map>
@@ -164,18 +163,26 @@ class RegressionSceneData:
             mecaDofs = {}
             numpyData.append(mecaDofs)
 
+        
         counterStep = 0
+        moduloStep = (self.steps-1) / self.dumpNumberStep
+        
+        # export rest position:
+        for mecaId in range(0, nbrMeca):
+            numpyData[mecaId][0.0] = np.copy(self.mecaObjs[mecaId].position.value)
+
         for step in range(0, self.steps):
             Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
             
-            if (counterStep == 499):
+            #print("step: " + str(step) + " | counterStep: " + str(counterStep) + " | moduloStep: " + str(moduloStep) + " | dt: " + str(self.rootNode.dt.value*(step)))
+            if (counterStep >= moduloStep or step == self.steps - 1):
                 for mecaId in range(0, nbrMeca):
                     numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
                 counterStep = 0
             
             counterStep = counterStep + 1
-            #pbarSimu.update(1)
-        #pbarSimu.close()
+            pbarSimu.update(1)
+        pbarSimu.close()
 
         for mecaId in range(0, nbrMeca):
             #for key in numpyData[mecaId]:
@@ -258,8 +265,8 @@ class RegressionSceneList:
                 continue
 
 
-            if (len(values) < 4):
-                print ("line read has more than 5 arguments: " + str(len(values)) + " -> " + line)
+            if (len(values) != 5):
+                print ("line read has not 5 arguments: " + str(len(values)) + " -> " + line)
                 continue
 
             fullFilePath = os.path.join(self.fileDir, values[0])
@@ -267,8 +274,6 @@ class RegressionSceneList:
 
             if (len(values) == 5):
                 sceneData = RegressionSceneData(fullFilePath, fullRefFilePath, values[1], values[2], values[3], values[4])
-            elif (len(values) == 4):
-                sceneData = RegressionSceneData(fullFilePath, fullRefFilePath, values[1], values[2], values[3], False)
             
             #sceneData.printInfo()
             self.scenes.append(sceneData)
@@ -284,12 +289,12 @@ class RegressionSceneList:
 
     def writeAllReferences(self):
         nbrScenes = len(self.scenes)
-        #pbarScenes = tqdm(total=nbrScenes)
-        #pbarScenes.set_description("Write all scenes from: " + self.filePath)
+        pbarScenes = tqdm(total=nbrScenes)
+        pbarScenes.set_description("Write all scenes from: " + self.filePath)
         for i in range(0, nbrScenes):
             self.writeReferences(i)
-            #pbarScenes.update(1)
-        #pbarScenes.close()
+            pbarScenes.update(1)
+        pbarScenes.close()
 
 
     def compareReferences(self, idScene):
@@ -327,12 +332,12 @@ class RegressionProgram:
     
     def writeAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
-        #pbarSets = tqdm(total=nbrSets)
-        #pbarSets.set_description("Write All sets")
+        pbarSets = tqdm(total=nbrSets)
+        pbarSets.set_description("Write All sets")
         for i in range(0, nbrSets):
             self.writeSetsReferences(i)
-            #pbarSets.update(1)
-        #pbarSets.close()
+            pbarSets.update(1)
+        pbarSets.close()
 
 
     def compareSetsReferences(self, idSet = 0):
