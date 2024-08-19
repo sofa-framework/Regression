@@ -219,11 +219,9 @@ class RegressionSceneData:
                 print("### Found same time: " + str(keyframes[frameStep]))
 
                 for mecaId in range(0, nbrMeca):
-                    #numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
-                    print(self.mecaObjs[mecaId].position.value[820])
                     mecaDofs = np.copy(self.mecaObjs[mecaId].position.value)
                     dataRef = np.asarray(numpyData[mecaId][str(keyframes[frameStep])]) - mecaDofs
-                    print(dataRef[820])
+                    
                     dist = np.linalg.norm(dataRef)
                     print("dist: " + str(dist))
 
@@ -291,10 +289,13 @@ class RegressionSceneList:
         nbrScenes = len(self.scenes)
         pbarScenes = tqdm(total=nbrScenes)
         pbarScenes.set_description("Write all scenes from: " + self.filePath)
+        
         for i in range(0, nbrScenes):
             self.writeReferences(i)
             pbarScenes.update(1)
         pbarScenes.close()
+        
+        return nbrScenes
 
 
     def compareReferences(self, idScene):
@@ -305,10 +306,13 @@ class RegressionSceneList:
         nbrScenes = len(self.scenes)
         pbarScenes = tqdm(total=nbrScenes)
         pbarScenes.set_description("Compare all scenes from: " + self.filePath)
+        
         for i in range(0, nbrScenes):
             self.compareReferences(i)
             pbarScenes.update(1)
         pbarScenes.close()
+        
+        return nbrScenes
 
 
 
@@ -328,30 +332,37 @@ class RegressionProgram:
 
     def writeSetsReferences(self, idSet = 0):
         sceneList = self.sceneSets[idSet]
-        sceneList.writeAllReferences()
+        nbrScenes = sceneList.writeAllReferences()
+        return nbrScenes
     
     def writeAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
         pbarSets = tqdm(total=nbrSets)
         pbarSets.set_description("Write All sets")
+        
+        nbrScenes = 0
         for i in range(0, nbrSets):
-            self.writeSetsReferences(i)
+            nbrScenes = nbrScenes + self.writeSetsReferences(i)
             pbarSets.update(1)
         pbarSets.close()
+        return nbrScenes
 
 
     def compareSetsReferences(self, idSet = 0):
         sceneList = self.sceneSets[idSet]
-        sceneList.compareAllReferences()
+        nbrScenes = sceneList.compareAllReferences()
+        return nbrScenes
         
     def compareAllSetsReferences(self):
         nbrSets = len(self.sceneSets)
         pbarSets = tqdm(total=nbrSets)
         pbarSets.set_description("Compare All sets")
+        nbrScenes = 0
         for i in range(0, nbrSets):
-            self.compareSetsReferences(i)
+            nbrScenes = nbrScenes + self.compareSetsReferences(i)
             pbarSets.update(1)
         pbarSets.close()
+        return nbrScenes
 
 
 
@@ -394,11 +405,13 @@ if __name__ == '__main__':
     SofaRuntime.importPlugin("SofaPython3")
 
     print ("### Number of sets: " + str(len(regProg.sceneSets)))
-    if (args.writeMode):
-        regProg.writeAllSetsReferences()
+    nbrScenes = 0
+    if (args.writeMode is True):
+        nbrScenes = regProg.writeAllSetsReferences()
     else:
-        regProg.compareAllSetsReferences(0)
+        nbrScenes = regProg.compareAllSetsReferences()
     print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
+    print ("### Number of scenes Done:  " + str(nbrScenes))
    
     sys.exit()
 
