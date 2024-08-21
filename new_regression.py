@@ -99,10 +99,19 @@ class RegressionSceneData:
         self.totalError = []
         self.errorByDof = []
         self.nbrTestedFrame = 0
+        self.regressionFailed = False
 
     def printInfo(self):
         print("Test scene: " + self.fileScenePath + " vs " + self.fileRefPath + " using: " + self.steps
               + " " + self.epsilon)
+        
+    def logErrors(self):
+        if self.regressionFailed is True:
+            print("### Failed: " + self.fileScenePath)
+            print("    ### Total Error per MechanicalObject: " + str(self.totalError))
+            print("    ### Error by Dofs: " + str(self.errorByDof))
+        else:
+            print ("### Success: " + self.fileScenePath + " | Number of key frames compared without error: " + str(self.nbrTestedFrame))
     
     
     def printMecaObjs(self):
@@ -231,7 +240,7 @@ class RegressionSceneData:
                     fullDist = np.linalg.norm(dataRef)
                     errorByDof = fullDist / float(dataRef.size)
                     
-                    #print (str(step) + " | fullDist: " + str(fullDist) + " | errorByDof: " + str(errorByDof) + " | nbrDofs: " + str(dataRef.size)) 
+                    #print (str(step) + "| " + self.mecaObjs[mecaId].name.value + " | fullDist: " + str(fullDist) + " | errorByDof: " + str(errorByDof) + " | nbrDofs: " + str(dataRef.size)) 
                     self.totalError[mecaId] = self.totalError[mecaId] + fullDist
                     self.errorByDof[mecaId] = self.errorByDof[mecaId] + errorByDof
 
@@ -249,10 +258,9 @@ class RegressionSceneData:
         
         for mecaId in range(0, nbrMeca):
             if (self.totalError[mecaId] > self.epsilon):
-                print("### " + self.fileScenePath + " | Total error exceed threshold for at least one MechanicalObject: " + str(self.totalError) + " Error by Dofs: " + str(self.errorByDof))
+                self.regressionFailed = True
                 return False
         
-        print ("### " + self.fileScenePath + " | Number of key frames compared without error: " + str(self.nbrTestedFrame))
         return True
 
 
@@ -269,10 +277,12 @@ class RegressionSceneList:
     
     def getNbrErrors(self):
         return self.nbrErrors
+    
+    def logScenesErrors(self):
+        for scene in self.scenes:
+            scene.logErrors()
 
     def processFile(self):
-        print("### Processing Regression file: " + self.filePath)
-        
         with open(self.filePath, 'r') as thefile:
             data = thefile.readlines()
         thefile.close()
@@ -305,8 +315,7 @@ class RegressionSceneList:
             
             #sceneData.printInfo()
             self.scenes.append(sceneData)
-            
-        print("## nbrScenes: " + str(len(self.scenes)))
+
 
     def writeReferences(self, idScene, printLog = False):
         self.scenes[idScene].loadScene()
@@ -364,10 +373,13 @@ class RegressionProgram:
 
     def nbrErrorInSets(self):
         nbrErrors = 0
-        nbrSets = len(self.sceneSets)
         for sceneList in self.sceneSets:
             nbrErrors = nbrErrors + sceneList.getNbrErrors()
         return nbrErrors
+    
+    def logErrorsInSets(self):
+        for sceneList in self.sceneSets:
+            sceneList.logScenesErrors()
 
     def writeSetsReferences(self, idSet = 0):
         sceneList = self.sceneSets[idSet]
@@ -455,6 +467,8 @@ if __name__ == '__main__':
     print ("### Number of scenes Done:  " + str(nbrScenes))
     if writeMode is False:
         print ("### Number of scenes failed:  " + str(regProg.nbrErrorInSets()))
+        #np.set_printoptions(precision=8)
+        regProg.logErrorsInSets()
    
     sys.exit()
 
