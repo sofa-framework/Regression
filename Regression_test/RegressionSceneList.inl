@@ -165,6 +165,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         double epsilon = 1e-4;
         bool testInMapping = false;
         bool dumpOnlyLastStep = false;
+        int period = 0.0;
 
         getline(iniFileStream, line);
 
@@ -172,12 +173,29 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
             continue;
 
         std::istringstream lineStream(line);
-        lineStream >> sceneFromList;
-        lineStream >> steps;
-        lineStream >> epsilon;
-        lineStream >> testInMapping;
-        lineStream >> dumpOnlyLastStep;
+        
+        // Decompose statement
+        std::vector<std::string> results(std::istream_iterator<std::string>{lineStream},
+            std::istream_iterator<std::string>());
+        
+        if (results.size() < 3)
+        {
+            msg_error(msgHeader) << "Line in regression file invalid. Format should be: scene_file nbrIter threshold (testInMapping==false) (dumpOnlyLastStep==false) (period==0)";
+            continue;
+        }
 
+        sceneFromList = results[0];
+        steps = std::stoi(results[1]);
+        epsilon = std::stod(results[2]);
+
+        if (results.size() > 3)
+            testInMapping = std::stoi(results[3]);
+
+        if (results.size() > 4)
+            dumpOnlyLastStep = std::stoi(results[4]);
+
+        if (results.size() > 5)
+            period = std::stoi(results[5]);
 
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
@@ -196,7 +214,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         scene = std::string(buffer);
         std::replace(scene.begin(), scene.end(), '\\', '/');
 #endif // WIN32
-        m_scenes.push_back( RegressionSceneData(scene, reference, steps, epsilon, testInMapping, dumpOnlyLastStep) );
+        m_scenes.push_back( RegressionSceneData(scene, reference, steps, epsilon, testInMapping, dumpOnlyLastStep, period) );
     }
 }
 
