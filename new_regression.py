@@ -82,6 +82,10 @@ class RegressionProgram:
             pbarSets.update(1)
         pbarSets.close()
         return nbrScenes
+    
+    def replayReferences(self, idSet = 0):
+        sceneList = self.sceneSets[idSet]
+        sceneList.replayReferences(0)
 
 
 
@@ -101,6 +105,11 @@ def parse_args():
                         help="Directory where to export data preprocessed",
                         type=str)
     
+    parser.add_argument('--replay', 
+                        dest='replay', 
+                        help="test option to replay reference",
+                        type=int)
+    
     parser.add_argument(
         "--writeRef",
         dest="writeMode",      
@@ -111,15 +120,6 @@ def parse_args():
     args = parser.parse_args()
 
     return args
-
-
-
-def loadGui(root):
-    Sofa.Gui.GUIManager.Init("myscene", "qglviewer")
-    Sofa.Gui.GUIManager.createGUI(root, __file__)
-    Sofa.Gui.GUIManager.SetDimension(1080, 1080)
-    Sofa.Gui.GUIManager.MainLoop(root)
-    Sofa.Gui.GUIManager.closeGUI()
 
         
 
@@ -133,6 +133,11 @@ if __name__ == '__main__':
 
     nbrScenes = 0
     writeMode = bool(args.writeMode)
+
+    replay = bool(args.replay)
+    if replay is True:
+        regProg.replayReferences()
+        sys.exit()
 
     if writeMode is True:
         nbrScenes = regProg.writeAllSetsReferences()

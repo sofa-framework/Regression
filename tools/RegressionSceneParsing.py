@@ -97,5 +97,12 @@ class RegressionSceneList:
             self.compareReferences(i)
             pbarScenes.update(1)
         pbarScenes.close()
-        
+
         return nbrScenes
+
+
+    def replayReferences(self, idScene):
+        self.scenes[idScene].loadScene()
+        self.scenes[idScene].replayReferences()
+        
+        
