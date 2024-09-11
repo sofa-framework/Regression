@@ -5,6 +5,8 @@ import numpy as np
 import gzip
 
 import Sofa
+import Sofa.Simulation
+import Sofa.Gui
 
 debugInfo = False
 
@@ -261,3 +263,14 @@ class RegressionSceneData:
                 return False
         
         return True
+    
+
+    def replayReferences(self):
+        Sofa.Gui.GUIManager.Init("myscene", "qglviewer")
+        Sofa.Gui.GUIManager.createGUI(self.rootNode, __file__)
+        Sofa.Gui.GUIManager.SetDimension(1080, 1080)
+        Sofa.Gui.GUIManager.MainLoop(self.rootNode)
+        Sofa.Gui.GUIManager.closeGUI()
+
+
+
