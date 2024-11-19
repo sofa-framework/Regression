@@ -216,7 +216,7 @@ class RegressionSceneData:
                 decodedArray = json.loads(zipfile.read().decode('utf-8'))
                 numpyData.append(decodedArray)
 
-                if (mecaId is 0):
+                if mecaId == 0:
                     for key in decodedArray:
                         keyframes.append(float(key))
             

@@ -2,22 +2,24 @@ import glob, os
 import argparse
 import sys
 import numpy as np
+
 from tqdm import tqdm
 
+if "SOFA_ROOT" not in os.environ:
+    sofa_real_root = "/Users/fred/Work/sofa"
+    sofa_root = sofa_real_root + "/build/current-ninja"
+    sofapython3_path = sofa_root + "/lib/python3/site-packages"
+    sofa_build_configuration = "Release"
 
-sofa_root = "C:\\projects\\sofa-build"
-sofapython3_path = sofa_root + "\\lib\\python3\\site-packages"
-sofa_build_configuration = "Release"
-
-# Set env
-os.environ["SOFA_ROOT"] = sofa_root
-os.environ["PYTHONPATH"] = sofapython3_path
-os.environ["SOFA_BUILD_CONFIGURATION"] = sofa_build_configuration
-sys.path.append(sofapython3_path)
+    os.environ["SOFA_ROOT"] = sofa_root
+    os.environ["SOFA_BUILD_CONFIGURATION"] = sofa_build_configuration
+    sys.path.append(sofapython3_path)
+else:
+    sofapython3_path = os.environ["SOFA_ROOT"] + "/lib/python3/site-packages"
+    sys.path.append(sofapython3_path)
 
 import Sofa
 import SofaRuntime
-
 
 dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), './tools')
 sys.path.append(os.path.abspath(dir))
@@ -63,7 +65,9 @@ class RegressionProgram:
         for i in range(0, nbrSets):
             nbrScenes = nbrScenes + self.writeSetsReferences(i)
             pbarSets.update(1)
+
         pbarSets.close()
+
         return nbrScenes
 
 
@@ -76,11 +80,14 @@ class RegressionProgram:
         nbrSets = len(self.sceneSets)
         pbarSets = tqdm(total=nbrSets)
         pbarSets.set_description("Compare All sets")
+
         nbrScenes = 0
         for i in range(0, nbrSets):
             nbrScenes = nbrScenes + self.compareSetsReferences(i)
             pbarSets.update(1)
+
         pbarSets.close()
+
         return nbrScenes
     
     def replayReferences(self, idSet = 0):
@@ -127,7 +134,10 @@ if __name__ == '__main__':
     # 1- Parse arguments to get folder path
     args = parse_args()
     # 2- Process file
-    regProg = RegressionProgram(args.input)
+    if args.input is not None:
+        regProg = RegressionProgram(args.input)
+    else:
+        exit("Error: Argument is required ! Quitting.")
     #SofaRuntime.disable_messages()
     SofaRuntime.importPlugin("SofaPython3")
 
