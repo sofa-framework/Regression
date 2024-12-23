@@ -27,15 +27,16 @@ import RegressionSceneParsing
 
 
 class RegressionProgram:
-    def __init__(self, input_folder):
+    def __init__(self, input_folder, disable_progress_bar = False):
         self.scene_sets = []  # List <RegressionSceneList>
+        self.disable_progress_bar = disable_progress_bar
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
                 if file.endswith(".regression-tests"):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path)
+                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path, self.disable_progress_bar)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
@@ -52,12 +53,12 @@ class RegressionProgram:
 
     def write_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
-        nbr_scenes = scene_list.write_all_references()
+        nbr_scenes = scene_list.write_all_references(self.disable_progress_bar)
         return nbr_scenes
 
     def write_all_sets_references(self):
         nbr_sets = len(self.scene_sets)
-        pbar_sets = tqdm(total=nbr_sets)
+        pbar_sets = tqdm(total=nbr_sets, disable=self.disable_progress_bar)
         pbar_sets.set_description("Write All sets")
 
         nbr_scenes = 0
@@ -76,7 +77,7 @@ class RegressionProgram:
 
     def compare_all_sets_references(self):
         nbr_sets = len(self.scene_sets)
-        pbar_sets = tqdm(total=nbr_sets)
+        pbar_sets = tqdm(total=nbr_sets, disable=self.disable_progress_bar)
         pbar_sets.set_description("Compare All sets")
 
         nbr_scenes = 0
@@ -124,7 +125,7 @@ def parse_args():
     parser.add_argument(
         "--disable-progress-bar",
         dest="progress_bar_is_disabled",
-        help='If set, will generate new reference files',
+        help='If set, will disable progress bars',
         action='store_true'
     )
     
@@ -139,7 +140,7 @@ if __name__ == '__main__':
     args = parse_args()
     # 2- Process file
     if args.input is not None:
-        regProg = RegressionProgram(args.input)
+        regProg = RegressionProgram(args.input, args.progress_bar_is_disabled)
     else:
         exit("Error: Argument is required ! Quitting.")
     #SofaRuntime.disable_messages()

@@ -6,7 +6,7 @@ from tqdm import tqdm
 ## This class is responsible for loading a file.regression-tests to gather the list of scene to test with all arguments
 ## It will provide the API to launch the tests or write refs on all scenes contained in this file
 class RegressionSceneList:
-    def __init__(self, file_path):
+    def __init__(self, file_path, disable_progress_bar = False):
         """
         /// Path to the file.regression-tests containing the list of scene to tests with all arguments
         std::string filePath;
@@ -16,6 +16,7 @@ class RegressionSceneList:
         self.scenes = [] # List<RegressionSceneData>
         self.nbr_errors = 0
         self.ref_dir_path = None
+        self.disable_progress_bar = disable_progress_bar
 
 
     def get_nbr_scenes(self):
@@ -57,7 +58,9 @@ class RegressionSceneList:
             full_ref_file_path = os.path.join(self.ref_dir_path, values[0])
 
             if len(values) == 5:
-                scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path, values[1], values[2], values[3], values[4])
+                scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
+                                                                     values[1], values[2], values[3], values[4],
+                                                                     self.disable_progress_bar)
             
                 #scene_data.printInfo()
                 self.scenes.append(scene_data)
@@ -72,7 +75,7 @@ class RegressionSceneList:
 
     def write_all_references(self):
         nbr_scenes = len(self.scenes)
-        pbar_scenes = tqdm(total=nbr_scenes)
+        pbar_scenes = tqdm(total=nbr_scenes, disable=self.disable_progress_bar)
         pbar_scenes.set_description("Write all scenes from: " + self.file_path)
         
         for i in range(0, nbr_scenes):
@@ -91,7 +94,7 @@ class RegressionSceneList:
         
     def compare_all_references(self):
         nbr_scenes = len(self.scenes)
-        pbar_scenes = tqdm(total=nbr_scenes)
+        pbar_scenes = tqdm(total=nbr_scenes, disable=self.disable_progress_bar)
         pbar_scenes.set_description("Compare all scenes from: " + self.file_path)
         
         for i in range(0, nbr_scenes):

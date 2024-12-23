@@ -70,7 +70,7 @@ class NumpyArrayEncoder(JSONEncoder):
 
 class RegressionSceneData:
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
-                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1):
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False):
         """
         /// Path to the file scene to test
         std::string m_fileScenePath;
@@ -100,6 +100,7 @@ class RegressionSceneData:
         self.nbr_tested_frame = 0
         self.regression_failed = False
         self.root_node = None
+        self.disable_progress_bar = disable_progress_bar
 
     def print_info(self):
         print("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
@@ -166,7 +167,7 @@ class RegressionSceneData:
 
 
     def write_references(self):
-        pbar_simu = tqdm(total=self.steps)
+        pbar_simu = tqdm(total=self.steps, disable=self.disable_progress_bar)
         pbar_simu.set_description("Simulate: " + self.file_scene_path)
         
         nbr_meca = len(self.meca_objs)
@@ -203,7 +204,7 @@ class RegressionSceneData:
         
 
     def compare_references(self):
-        pbar_simu = tqdm(total=float(self.steps), disable=True)
+        pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
         pbar_simu.set_description("compareReferences: " + self.file_scene_path)
         
         nbr_meca = len(self.meca_objs)
