@@ -17,13 +17,8 @@ else:
     sofapython3_path = os.environ["SOFA_ROOT"] + "/lib/python3/site-packages"
     sys.path.append(sofapython3_path)
 
-import Sofa
-import SofaRuntime
-
-tools_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), './tools')
-sys.path.append(os.path.abspath(tools_dir))
-import RegressionSceneData
-import RegressionSceneParsing
+import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
+import tools.RegressionSceneParsing as RegressionSceneParsing
 
 
 class RegressionProgram:
@@ -140,31 +135,29 @@ if __name__ == '__main__':
     args = parse_args()
     # 2- Process file
     if args.input is not None:
-        regProg = RegressionProgram(args.input, args.progress_bar_is_disabled)
+        reg_prog = RegressionProgram(args.input, args.progress_bar_is_disabled)
     else:
         exit("Error: Argument is required ! Quitting.")
-    #SofaRuntime.disable_messages()
-    SofaRuntime.importPlugin("SofaPython3")
 
     nbr_scenes = 0
 
     replay = bool(args.replay)
-    if replay is True:
-        regProg.replay_references()
+    if replay:
+        reg_prog.replay_references()
         sys.exit()
 
-    if args.write_mode is True:
-        nbr_scenes = regProg.write_all_sets_references()
+    if args.write_mode:
+        nbr_scenes = reg_prog.write_all_sets_references()
     else:
-        nbr_scenes = regProg.compare_all_sets_references()
+        nbr_scenes = reg_prog.compare_all_sets_references()
 
-    print ("### Number of sets Done:  " + str(len(regProg.scene_sets)))
+    print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
     print ("### Number of scenes Done:  " + str(nbr_scenes))
     if args.write_mode is False:
-        print ("### Number of scenes failed:  " + str(regProg.nbr_error_in_sets()))
+        print ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()))
         #np.set_printoptions(precision=8)
-        regProg.log_errors_in_sets()
-   
+        reg_prog.log_errors_in_sets()
+
     sys.exit()
 
     

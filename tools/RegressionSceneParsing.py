@@ -1,5 +1,5 @@
 import os
-import RegressionSceneData
+import tools.RegressionSceneData as RegressionSceneData
 from tqdm import tqdm
 
 
@@ -87,10 +87,14 @@ class RegressionSceneList:
 
 
     def compare_references(self, id_scene):
-        self.scenes[id_scene].load_scene()
-        result = self.scenes[id_scene].compare_references()
-        if not result:
+        try:
+            self.scenes[id_scene].load_scene()
+        except Exception as e:
             self.nbr_errors = self.nbr_errors + 1
+        else:
+            result = self.scenes[id_scene].compare_references()
+            if not result:
+                self.nbr_errors = self.nbr_errors + 1
         
     def compare_all_references(self):
         nbr_scenes = len(self.scenes)

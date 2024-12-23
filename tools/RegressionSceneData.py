@@ -5,7 +5,6 @@ import numpy as np
 import gzip
 
 import Sofa
-import Sofa.Simulation
 import Sofa.Gui
 
 debug_info = False
@@ -154,15 +153,19 @@ class RegressionSceneData:
 
     def load_scene(self):
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
-        Sofa.Simulation.init(self.root_node)
-        
-        # prepare ref files per mecaObjs:
-        self.parse_node(self.root_node, 0)
-        counter = 0
-        for mecaObj in self.meca_objs:
-            _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
-            self.filenames.append(_filename)
-            counter = counter+1
+        if not self.root_node: # error while loading
+            print(f'Error while trying to load {self.file_scene_path}')
+            raise RuntimeError
+        else:
+            Sofa.Simulation.init(self.root_node)
+
+            # prepare ref files per mecaObjs:
+            self.parse_node(self.root_node, 0)
+            counter = 0
+            for mecaObj in self.meca_objs:
+                _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
+                self.filenames.append(_filename)
+                counter = counter+1
         
 
 
