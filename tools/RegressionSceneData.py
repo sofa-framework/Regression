@@ -3,6 +3,7 @@ import json
 from json import JSONEncoder
 import numpy as np
 import gzip
+import pathlib
 
 import Sofa
 import Sofa.Gui
@@ -198,9 +199,13 @@ class RegressionSceneData:
         pbar_simu.close()
 
         for meca_id in range(0, nbr_meca):
+            # make sure the parent directory of the references exists
+            output_file = pathlib.Path(self.filenames[meca_id])
+            output_file.parent.mkdir(exist_ok=True, parents=True)
+
             #for key in numpy_data[meca_id]:
             #    print("key: %s , value: %s" % (key, numpy_data[meca_id][key][820]))
-            with gzip.open(self.filenames[meca_id], "w") as write_file:
+            with gzip.open(self.filenames[meca_id], 'wb') as write_file:
                 write_file.write(json.dumps(numpy_data[meca_id], cls=NumpyArrayEncoder).encode('utf-8'))
 
         Sofa.Simulation.unload(self.root_node)
@@ -208,7 +213,7 @@ class RegressionSceneData:
 
     def compare_references(self):
         pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
-        pbar_simu.set_description("compareReferences: " + self.file_scene_path)
+        pbar_simu.set_description("compare_references: " + self.file_scene_path)
         
         nbr_meca = len(self.meca_objs)
         numpy_data = [] # List<map>

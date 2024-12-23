@@ -48,7 +48,7 @@ class RegressionProgram:
 
     def write_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
-        nbr_scenes = scene_list.write_all_references(self.disable_progress_bar)
+        nbr_scenes = scene_list.write_all_references()
         return nbr_scenes
 
     def write_all_sets_references(self):
