@@ -215,18 +215,22 @@ class RegressionSceneData:
         keyframes = []
         self.total_error = []
         self.error_by_dof = []
-        
-        for meca_id in range(0, nbr_meca):
-            with gzip.open(self.filenames[meca_id], 'r') as zipfile:
-                decoded_array = json.loads(zipfile.read().decode('utf-8'))
-                numpy_data.append(decoded_array)
 
-                if meca_id == 0:
-                    for key in decoded_array:
-                        keyframes.append(float(key))
-            
-            self.total_error.append(0.0)
-            self.error_by_dof.append(0.0)
+        try:
+            for meca_id in range(0, nbr_meca):
+                with gzip.open(self.filenames[meca_id], 'r') as zipfile:
+                    decoded_array = json.loads(zipfile.read().decode('utf-8'))
+                    numpy_data.append(decoded_array)
+
+                    if meca_id == 0:
+                        for key in decoded_array:
+                            keyframes.append(float(key))
+
+                self.total_error.append(0.0)
+                self.error_by_dof.append(0.0)
+        except FileNotFoundError as e:
+            print(f'Error while reading references: {str(e)}')
+            return False
 
                     
         frame_step = 0
