@@ -1,4 +1,4 @@
-import sys, os
+import os
 import RegressionSceneData
 from tqdm import tqdm
 
@@ -6,103 +6,104 @@ from tqdm import tqdm
 ## This class is responsible for loading a file.regression-tests to gather the list of scene to test with all arguments
 ## It will provide the API to launch the tests or write refs on all scenes contained in this file
 class RegressionSceneList:
-    def __init__(self, filePath):
+    def __init__(self, file_path):
         """
         /// Path to the file.regression-tests containing the list of scene to tests with all arguments
         std::string filePath;
         """
-        self.filePath = filePath
-        self.fileDir = os.path.dirname(filePath)
+        self.file_path = file_path
+        self.file_dir = os.path.dirname(file_path)
         self.scenes = [] # List<RegressionSceneData>
-        self.nbrErrors = 0
+        self.nbr_errors = 0
+        self.ref_dir_path = None
 
 
-    def getNbrScenes(self):
+    def get_nbr_scenes(self):
         return len(self.scenes)
     
-    def getNbrErrors(self):
-        return self.nbrErrors
+    def get_nbr_errors(self):
+        return self.nbr_errors
     
-    def logScenesErrors(self):
+    def log_scenes_errors(self):
         for scene in self.scenes:
-            scene.logErrors()
+            scene.log_errors()
 
-    def processFile(self):
-        with open(self.filePath, 'r') as thefile:
-            data = thefile.readlines()
-        thefile.close()
+    def process_file(self):
+        with open(self.file_path, 'r') as the_file:
+            data = the_file.readlines()
+        the_file.close()
         
         count = 0
         for idx, line in enumerate(data):
-            if (line[0] == "#"):
+            if line[0] == "#":
                 continue
 
             values = line.split()
-            if (len(values) == 0):
+            if len(values) == 0:
                 continue
 
-            if (count == 0):
-                self.refDirPath = os.path.join(self.fileDir, values[0])
-                self.refDirPath = os.path.abspath(self.refDirPath)
+            if count == 0:
+                self.ref_dir_path = os.path.join(self.file_dir, values[0])
+                self.ref_dir_path = os.path.abspath(self.ref_dir_path)
                 count = count + 1
                 continue
 
 
-            if (len(values) != 5):
+            if len(values) != 5:
                 print ("line read has not 5 arguments: " + str(len(values)) + " -> " + line)
                 continue
 
-            fullFilePath = os.path.join(self.fileDir, values[0])
-            fullRefFilePath = os.path.join(self.refDirPath, values[0])
+            full_file_path = os.path.join(self.file_dir, values[0])
+            full_ref_file_path = os.path.join(self.ref_dir_path, values[0])
 
-            if (len(values) == 5):
-                sceneData = RegressionSceneData.RegressionSceneData(fullFilePath, fullRefFilePath, values[1], values[2], values[3], values[4])
+            if len(values) == 5:
+                scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path, values[1], values[2], values[3], values[4])
             
-            #sceneData.printInfo()
-            self.scenes.append(sceneData)
+                #scene_data.printInfo()
+                self.scenes.append(scene_data)
 
 
-    def writeReferences(self, idScene, printLog = False):
-        self.scenes[idScene].loadScene()
-        if (printLog is True):
-            self.scenes[idScene].printMecaObjs()
+    def write_references(self, id_scene, print_log = False):
+        self.scenes[id_scene].load_scene()
+        if print_log is True:
+            self.scenes[id_scene].print_meca_objs()
             
-        self.scenes[idScene].writeReferences()
+        self.scenes[id_scene].write_references()
 
-    def writeAllReferences(self):
-        nbrScenes = len(self.scenes)
-        pbarScenes = tqdm(total=nbrScenes)
-        pbarScenes.set_description("Write all scenes from: " + self.filePath)
+    def write_all_references(self):
+        nbr_scenes = len(self.scenes)
+        pbar_scenes = tqdm(total=nbr_scenes)
+        pbar_scenes.set_description("Write all scenes from: " + self.file_path)
         
-        for i in range(0, nbrScenes):
-            self.writeReferences(i)
-            pbarScenes.update(1)
-        pbarScenes.close()
+        for i in range(0, nbr_scenes):
+            self.write_references(i)
+            pbar_scenes.update(1)
+        pbar_scenes.close()
         
-        return nbrScenes
+        return nbr_scenes
 
 
-    def compareReferences(self, idScene):
-        self.scenes[idScene].loadScene()
-        result = self.scenes[idScene].compareReferences()
-        if (result == False):
-            self.nbrErrors = self.nbrErrors + 1
+    def compare_references(self, id_scene):
+        self.scenes[id_scene].load_scene()
+        result = self.scenes[id_scene].compare_references()
+        if not result:
+            self.nbr_errors = self.nbr_errors + 1
         
-    def compareAllReferences(self):
-        nbrScenes = len(self.scenes)
-        pbarScenes = tqdm(total=nbrScenes)
-        pbarScenes.set_description("Compare all scenes from: " + self.filePath)
+    def compare_all_references(self):
+        nbr_scenes = len(self.scenes)
+        pbar_scenes = tqdm(total=nbr_scenes)
+        pbar_scenes.set_description("Compare all scenes from: " + self.file_path)
         
-        for i in range(0, nbrScenes):
-            self.compareReferences(i)
-            pbarScenes.update(1)
-        pbarScenes.close()
+        for i in range(0, nbr_scenes):
+            self.compare_references(i)
+            pbar_scenes.update(1)
+        pbar_scenes.close()
 
-        return nbrScenes
+        return nbr_scenes
 
 
-    def replayReferences(self, idScene):
-        self.scenes[idScene].loadScene()
-        self.scenes[idScene].replayReferences()
+    def replay_references(self, id_scene):
+        self.scenes[id_scene].load_scene()
+        self.scenes[id_scene].replay_references()
         
         

@@ -1,7 +1,6 @@
-import glob, os
+import os
 import argparse
 import sys
-import numpy as np
 
 from tqdm import tqdm
 
@@ -21,78 +20,77 @@ else:
 import Sofa
 import SofaRuntime
 
-dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), './tools')
-sys.path.append(os.path.abspath(dir))
+tools_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), './tools')
+sys.path.append(os.path.abspath(tools_dir))
 import RegressionSceneData
 import RegressionSceneParsing
 
 
 class RegressionProgram:
-    def __init__(self, inputFolder):
-        self.sceneSets = [] # List <RegressionSceneList>
+    def __init__(self, input_folder):
+        self.scene_sets = []  # List <RegressionSceneList>
 
-        for root, dirs, files in os.walk(inputFolder):
+        for root, dirs, files in os.walk(input_folder):
             for file in files:
                 if file.endswith(".regression-tests"):
-                    filePath = os.path.join(root, file)
+                    file_path = os.path.join(root, file)
 
-                    sceneList = RegressionSceneParsing.RegressionSceneList(filePath)
+                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path)
 
-                    sceneList.processFile()
-                    self.sceneSets.append(sceneList)
+                    scene_list.process_file()
+                    self.scene_sets.append(scene_list)
 
-    def nbrErrorInSets(self):
-        nbrErrors = 0
-        for sceneList in self.sceneSets:
-            nbrErrors = nbrErrors + sceneList.getNbrErrors()
-        return nbrErrors
-    
-    def logErrorsInSets(self):
-        for sceneList in self.sceneSets:
-            sceneList.logScenesErrors()
+    def nbr_error_in_sets(self):
+        nbr_errors = 0
+        for scene_list in self.scene_sets:
+            nbr_errors = nbr_errors + scene_list.get_nbr_errors()
+        return nbr_errors
 
-    def writeSetsReferences(self, idSet = 0):
-        sceneList = self.sceneSets[idSet]
-        nbrScenes = sceneList.writeAllReferences()
-        return nbrScenes
-    
-    def writeAllSetsReferences(self):
-        nbrSets = len(self.sceneSets)
-        pbarSets = tqdm(total=nbrSets)
-        pbarSets.set_description("Write All sets")
-        
-        nbrScenes = 0
-        for i in range(0, nbrSets):
-            nbrScenes = nbrScenes + self.writeSetsReferences(i)
-            pbarSets.update(1)
+    def log_errors_in_sets(self):
+        for scene_list in self.scene_sets:
+            scene_list.log_scenes_errors()
 
-        pbarSets.close()
+    def write_sets_references(self, id_set=0):
+        scene_list = self.scene_sets[id_set]
+        nbr_scenes = scene_list.write_all_references()
+        return nbr_scenes
 
-        return nbrScenes
+    def write_all_sets_references(self):
+        nbr_sets = len(self.scene_sets)
+        pbar_sets = tqdm(total=nbr_sets)
+        pbar_sets.set_description("Write All sets")
 
+        nbr_scenes = 0
+        for i in range(0, nbr_sets):
+            nbr_scenes = nbr_scenes + self.write_sets_references(i)
+            pbar_sets.update(1)
 
-    def compareSetsReferences(self, idSet = 0):
-        sceneList = self.sceneSets[idSet]
-        nbrScenes = sceneList.compareAllReferences()
-        return nbrScenes
-        
-    def compareAllSetsReferences(self):
-        nbrSets = len(self.sceneSets)
-        pbarSets = tqdm(total=nbrSets)
-        pbarSets.set_description("Compare All sets")
+        pbar_sets.close()
 
-        nbrScenes = 0
-        for i in range(0, nbrSets):
-            nbrScenes = nbrScenes + self.compareSetsReferences(i)
-            pbarSets.update(1)
+        return nbr_scenes
 
-        pbarSets.close()
+    def compare_sets_references(self, id_set=0):
+        scene_list = self.scene_sets[id_set]
+        nbr_scenes = scene_list.compare_all_references()
+        return nbr_scenes
 
-        return nbrScenes
-    
-    def replayReferences(self, idSet = 0):
-        sceneList = self.sceneSets[idSet]
-        sceneList.replayReferences(0)
+    def compare_all_sets_references(self):
+        nbr_sets = len(self.scene_sets)
+        pbar_sets = tqdm(total=nbr_sets)
+        pbar_sets.set_description("Compare All sets")
+
+        nbr_scenes = 0
+        for i in range(0, nbr_sets):
+            nbr_scenes = nbr_scenes + self.compare_sets_references(i)
+            pbar_sets.update(1)
+
+        pbar_sets.close()
+
+        return nbr_scenes
+
+    def replay_references(self, id_set=0):
+        scene_list = self.scene_sets[id_set]
+        scene_list.replay_references(0)
 
 
 
@@ -118,15 +116,21 @@ def parse_args():
                         type=int)
     
     parser.add_argument(
-        "--writeRef",
-        dest="writeMode",      
-        help='If true, will generate new reference files',
-        type=int
+        "--write-references",
+        dest="write_mode",
+        help='If set, will generate new reference files',
+        action='store_true'
+    )
+    parser.add_argument(
+        "--disable-progress-bar",
+        dest="progress_bar_is_disabled",
+        help='If set, will generate new reference files',
+        action='store_true'
     )
     
-    args = parser.parse_args()
+    cmdline_args = parser.parse_args()
 
-    return args
+    return cmdline_args
 
         
 
@@ -141,25 +145,24 @@ if __name__ == '__main__':
     #SofaRuntime.disable_messages()
     SofaRuntime.importPlugin("SofaPython3")
 
-    nbrScenes = 0
-    writeMode = bool(args.writeMode)
+    nbr_scenes = 0
 
     replay = bool(args.replay)
     if replay is True:
-        regProg.replayReferences()
+        regProg.replay_references()
         sys.exit()
 
-    if writeMode is True:
-        nbrScenes = regProg.writeAllSetsReferences()
+    if args.write_mode is True:
+        nbr_scenes = regProg.write_all_sets_references()
     else:
-        nbrScenes = regProg.compareAllSetsReferences()
+        nbr_scenes = regProg.compare_all_sets_references()
 
-    print ("### Number of sets Done:  " + str(len(regProg.sceneSets)))
-    print ("### Number of scenes Done:  " + str(nbrScenes))
-    if writeMode is False:
-        print ("### Number of scenes failed:  " + str(regProg.nbrErrorInSets()))
+    print ("### Number of sets Done:  " + str(len(regProg.scene_sets)))
+    print ("### Number of scenes Done:  " + str(nbr_scenes))
+    if args.write_mode is False:
+        print ("### Number of scenes failed:  " + str(regProg.nbr_error_in_sets()))
         #np.set_printoptions(precision=8)
-        regProg.logErrorsInSets()
+        regProg.log_errors_in_sets()
    
     sys.exit()
 

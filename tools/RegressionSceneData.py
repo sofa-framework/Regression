@@ -8,57 +8,57 @@ import Sofa
 import Sofa.Simulation
 import Sofa.Gui
 
-debugInfo = False
+debug_info = False
 
-def isSimulated(node):
-    if (node.hasODESolver()):
+def is_simulated(node):
+    if node.hasODESolver():
         return True
 
     # if no Solver in current node, check parent nodes
     for parent in node.parents:
-        solverFound = isSimulated(parent)
-        if (solverFound):
+        solver_found = is_simulated(parent)
+        if solver_found:
             return True
         
     return False
 
 
-def exportJson():
+def export_json():
 
-    numpyArrayOne = np.array([[11 ,22, 33], [44, 55, 66], [77, 88, 99]])
-    numpyArrayTwo = np.array([[51, 61, 91], [121 ,118, 127]])
+    numpy_array_one = np.array([[11 ,22, 33], [44, 55, 66], [77, 88, 99]])
+    numpy_array_two = np.array([[51, 61, 91], [121 ,118, 127]])
 
     # Serialization
-    numpyData = {"arrayOne": numpyArrayOne, "arrayTwo": numpyArrayTwo}
+    numpy_data = {"arrayOne": numpy_array_one, "arrayTwo": numpy_array_two}
     print("serialize NumPy array into JSON and write into a file")
     with gzip.open("numpyData.json.gz", 'w') as zipfile:
-        for key in numpyData:
-            print(numpyData[key])
+        for key in numpy_data:
+            print(numpy_data[key])
 
         #write_file.write(json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4))
         #res = json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4)
         #print(res)
         #json.dump(numpyData, zipfile, cls=NumpyArrayEncoder)
-        zipfile.write(json.dumps(numpyData, cls=NumpyArrayEncoder).encode('utf-8'))
+        zipfile.write(json.dumps(numpy_data, cls=NumpyArrayEncoder).encode('utf-8'))
     
-    print("Done writing serialized NumPy array into file")
+    print('Done writing serialized NumPy array into file')
 
-def readJson():
+def read_json():
     # Deserialization
     print("Started Reading JSON file")
     with gzip.open("numpyData.json.gz", 'r') as zipfile:
 
     #with open("numpyData.json", "r") as read_file:
         print("Converting JSON encoded data into Numpy array")
-        decodedArray = json.loads(zipfile.read().decode('utf-8'))
-        #decodedArray = json.load(zipfile)
+        decoded_array = json.loads(zipfile.read().decode('utf-8'))
+        #decoded_array = json.load(zipfile)
 
-        finalNumpyArrayOne = np.asarray(decodedArray["arrayOne"])
+        final_numpy_array_one = np.asarray(decoded_array["arrayOne"])
         print("NumPy Array One")
-        print(finalNumpyArrayOne)
-        finalNumpyArrayTwo = np.asarray(decodedArray["arrayTwo"])
+        print(final_numpy_array_one)
+        final_numpy_array_two = np.asarray(decoded_array["arrayTwo"])
         print("NumPy Array Two")
-        print(finalNumpyArrayTwo)
+        print(final_numpy_array_two)
 
 
 class NumpyArrayEncoder(JSONEncoder):
@@ -69,8 +69,8 @@ class NumpyArrayEncoder(JSONEncoder):
 
 
 class RegressionSceneData:
-    def __init__(self, fileScenePath: str = None, fileRefPath: str = None, steps = 1000, 
-                 epsilon = 0.0001, mecaInMapping = True, dumpNumberStep = 1):
+    def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1):
         """
         /// Path to the file scene to test
         std::string m_fileScenePath;
@@ -85,181 +85,182 @@ class RegressionSceneData:
         /// Option to compare mechanicalObject dof position at each timestep
         bool m_dumpNumberStep;    
         """
-        self.fileScenePath = fileScenePath
-        self.fileRefPath = fileRefPath
+        self.file_scene_path = file_scene_path
+        self.file_ref_path = file_ref_path
         self.steps = int(steps)
         self.epsilon = float(epsilon)
-        self.mecaInMapping = mecaInMapping
-        self.dumpNumberStep = int(dumpNumberStep)
-        self.mecaObjs = []
-        self.fileNames = []
+        self.meca_in_mapping = meca_in_mapping
+        self.dump_number_step = int(dump_number_step)
+        self.meca_objs = []
+        self.filenames = []
         self.mins = []
         self.maxs = []
-        self.totalError = []
-        self.errorByDof = []
-        self.nbrTestedFrame = 0
-        self.regressionFailed = False
+        self.total_error = []
+        self.error_by_dof = []
+        self.nbr_tested_frame = 0
+        self.regression_failed = False
+        self.root_node = None
 
-    def printInfo(self):
-        print("Test scene: " + self.fileScenePath + " vs " + self.fileRefPath + " using: " + self.steps
-              + " " + self.epsilon)
+    def print_info(self):
+        print("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
+              + " " + str(self.epsilon))
         
-    def logErrors(self):
-        if self.regressionFailed is True:
-            print("### Failed: " + self.fileScenePath)
-            print("    ### Total Error per MechanicalObject: " + str(self.totalError))
-            print("    ### Error by Dofs: " + str(self.errorByDof))
+    def log_errors(self):
+        if self.regression_failed is True:
+            print("### Failed: " + self.file_scene_path)
+            print("    ### Total Error per MechanicalObject: " + str(self.total_error))
+            print("    ### Error by Dofs: " + str(self.error_by_dof))
         else:
-            print ("### Success: " + self.fileScenePath + " | Number of key frames compared without error: " + str(self.nbrTestedFrame))
+            print ("### Success: " + self.file_scene_path + " | Number of key frames compared without error: " + str(self.nbr_tested_frame))
     
     
-    def printMecaObjs(self):
-        print ("# Nbr Meca: " + str(len(self.mecaObjs)))
+    def print_meca_objs(self):
+        print ("# Nbr Meca: " + str(len(self.meca_objs)))
         counter = 0
-        for mecaObj in self.mecaObjs:
-            filename = self.fileRefPath + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
+        for mecaObj in self.meca_objs:
+            filename = self.file_ref_path + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
             counter = counter+1
             print ("# File attached: " + filename)
 
 
-    def parseNode(self, node, level = 0):
+    def parse_node(self, node, level = 0):
         for child in node.children:
             mstate = child.getMechanicalState()
-            if (mstate):
-                if (isSimulated(child)):
-                    self.mecaObjs.append(mstate)
+            if mstate:
+                if is_simulated(child):
+                    self.meca_objs.append(mstate)
             
-            self.parseNode(child, level+1)
+            self.parse_node(child, level + 1)
     
 
-    def addCompareState(self):
+    def add_compare_state(self):
         counter = 0
-        for mecaObj in self.mecaObjs:
-            _filename = self.fileRefPath + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
+        for meca_obj in self.meca_objs:
+            _filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
             
-            mecaObj.getContext().addObject('CompareState', filename=_filename)
+            meca_obj.getContext().addObject('CompareState', filename=_filename)
             counter = counter+1
 
 
-    def addWriteState(self):
+    def add_write_state(self):
         counter = 0
-        for mecaObj in self.mecaObjs:
-            _filename = self.fileRefPath + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
+        for meca_obj in self.meca_objs:
+            _filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
             
-            mecaObj.getContext().addObject('WriteState', filename=_filename)
+            meca_obj.getContext().addObject('WriteState', filename=_filename)
             counter = counter+1
     
 
-    def loadScene(self):
-        self.rootNode = Sofa.Simulation.load(self.fileScenePath)
-        Sofa.Simulation.init(self.rootNode)
+    def load_scene(self):
+        self.root_node = Sofa.Simulation.load(self.file_scene_path)
+        Sofa.Simulation.init(self.root_node)
         
         # prepare ref files per mecaObjs:
-        self.parseNode(self.rootNode, 0)
+        self.parse_node(self.root_node, 0)
         counter = 0
-        for mecaObj in self.mecaObjs:
-            _filename = self.fileRefPath + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
-            self.fileNames.append(_filename)
+        for mecaObj in self.meca_objs:
+            _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
+            self.filenames.append(_filename)
             counter = counter+1
         
 
 
-    def writeReferences(self):
-        pbarSimu = tqdm(total=self.steps)
-        pbarSimu.set_description("Simulate: " + self.fileScenePath)
+    def write_references(self):
+        pbar_simu = tqdm(total=self.steps)
+        pbar_simu.set_description("Simulate: " + self.file_scene_path)
         
-        nbrMeca = len(self.mecaObjs)
-        numpyData = [] # List<map>
-        for mecaId in range(0, nbrMeca):
-            mecaDofs = {}
-            numpyData.append(mecaDofs)
+        nbr_meca = len(self.meca_objs)
+        numpy_data = [] # List<map>
+        for meca_id in range(0, nbr_meca):
+            meca_dofs = {}
+            numpy_data.append(meca_dofs)
 
         
-        counterStep = 0
-        moduloStep = (self.steps) / self.dumpNumberStep
+        counter_step = 0
+        modulo_step = self.steps / self.dump_number_step
         
         for step in range(0, self.steps + 1):
             # export rest position, final position + modulo steps:
-            if (step == 0 or counterStep >= moduloStep or step == self.steps):                
-                #print("step: " + str(step) + " | counterStep: " + str(counterStep) + " | moduloStep: " + str(moduloStep) + " | dt: " + str(self.rootNode.dt.value*(step)))
-                for mecaId in range(0, nbrMeca):
-                    numpyData[mecaId][self.rootNode.dt.value*(step)] = np.copy(self.mecaObjs[mecaId].position.value)
-                counterStep = 0
+            if step == 0 or counter_step >= modulo_step or step == self.steps:
+                #print("step: " + str(step) + " | counter_step: " + str(counter_step) + " | modulo_step: " + str(modulo_step) + " | dt: " + str(self.rootNode.dt.value*(step)))
+                for meca_id in range(0, nbr_meca):
+                    numpy_data[meca_id][self.root_node.dt.value * step] = np.copy(self.meca_objs[meca_id].position.value)
+                counter_step = 0
             
-            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
-            counterStep = counterStep + 1
+            Sofa.Simulation.animate(self.root_node, self.root_node.dt.value)
+            counter_step = counter_step + 1
                         
-            pbarSimu.update(1)
-        pbarSimu.close()
+            pbar_simu.update(1)
+        pbar_simu.close()
 
-        for mecaId in range(0, nbrMeca):
-            #for key in numpyData[mecaId]:
-            #    print("key: %s , value: %s" % (key, numpyData[mecaId][key][820]))
-            with gzip.open(self.fileNames[mecaId], "w") as write_file:
-                write_file.write(json.dumps(numpyData[mecaId], cls=NumpyArrayEncoder).encode('utf-8'))
+        for meca_id in range(0, nbr_meca):
+            #for key in numpy_data[meca_id]:
+            #    print("key: %s , value: %s" % (key, numpy_data[meca_id][key][820]))
+            with gzip.open(self.filenames[meca_id], "w") as write_file:
+                write_file.write(json.dumps(numpy_data[meca_id], cls=NumpyArrayEncoder).encode('utf-8'))
 
-        Sofa.Simulation.unload(self.rootNode)
+        Sofa.Simulation.unload(self.root_node)
         
 
-    def compareReferences(self):
-        pbarSimu = tqdm(total=float(self.steps))
-        pbarSimu.set_description("compareReferences: " + self.fileScenePath)
+    def compare_references(self):
+        pbar_simu = tqdm(total=float(self.steps), disable=True)
+        pbar_simu.set_description("compareReferences: " + self.file_scene_path)
         
-        nbrMeca = len(self.mecaObjs)
-        numpyData = [] # List<map>
+        nbr_meca = len(self.meca_objs)
+        numpy_data = [] # List<map>
         keyframes = []
-        self.totalError = []
-        self.errorByDof = []
+        self.total_error = []
+        self.error_by_dof = []
         
-        for mecaId in range(0, nbrMeca):
-            with gzip.open(self.fileNames[mecaId], 'r') as zipfile:
-                decodedArray = json.loads(zipfile.read().decode('utf-8'))
-                numpyData.append(decodedArray)
+        for meca_id in range(0, nbr_meca):
+            with gzip.open(self.filenames[meca_id], 'r') as zipfile:
+                decoded_array = json.loads(zipfile.read().decode('utf-8'))
+                numpy_data.append(decoded_array)
 
-                if mecaId == 0:
-                    for key in decodedArray:
+                if meca_id == 0:
+                    for key in decoded_array:
                         keyframes.append(float(key))
             
-            self.totalError.append(0.0)
-            self.errorByDof.append(0.0)
+            self.total_error.append(0.0)
+            self.error_by_dof.append(0.0)
 
                     
-        frameStep = 0
-        nbrFrames = len(keyframes)        
-        self.nbrTestedFrame = 0
+        frame_step = 0
+        nbr_frames = len(keyframes)
+        self.nbr_tested_frame = 0
         for step in range(0, self.steps + 1):
-            simuTime = self.rootNode.dt.value*(step)
+            simu_time = self.root_node.dt.value * step
 
-            if (simuTime == keyframes[frameStep]):
-                for mecaId in range(0, nbrMeca):
-                    mecaDofs = np.copy(self.mecaObjs[mecaId].position.value)
-                    dataRef = np.asarray(numpyData[mecaId][str(keyframes[frameStep])]) - mecaDofs
+            if simu_time == keyframes[frame_step]:
+                for meca_id in range(0, nbr_meca):
+                    meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
+                    data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])]) - meca_dofs
                     
                     # Compute total distance between the 2 sets
-                    fullDist = np.linalg.norm(dataRef)
-                    errorByDof = fullDist / float(dataRef.size)
+                    full_dist = np.linalg.norm(data_ref)
+                    error_by_dof = full_dist / float(data_ref.size)
                     
-                    if (debugInfo is True):
-                        print (str(step) + "| " + self.mecaObjs[mecaId].name.value + " | fullDist: " + str(fullDist) + " | errorByDof: " + str(errorByDof) + " | nbrDofs: " + str(dataRef.size)) 
+                    if debug_info:
+                        print (str(step) + "| " + self.meca_objs[meca_id].name.value + " | full_dist: " + str(full_dist) + " | error_by_dof: " + str(error_by_dof) + " | nbrDofs: " + str(data_ref.size))
 
-                    self.totalError[mecaId] = self.totalError[mecaId] + fullDist
-                    self.errorByDof[mecaId] = self.errorByDof[mecaId] + errorByDof
+                    self.total_error[meca_id] = self.total_error[meca_id] + full_dist
+                    self.error_by_dof[meca_id] = self.error_by_dof[meca_id] + error_by_dof
 
-                frameStep = frameStep + 1
-                self.nbrTestedFrame = self.nbrTestedFrame + 1
+                frame_step = frame_step + 1
+                self.nbr_tested_frame = self.nbr_tested_frame + 1
                 
-                # security exit if simulation steps exceed nbrFrames
-                if (frameStep == nbrFrames):
+                # security exit if simulation steps exceed nbr_frames
+                if frame_step == nbr_frames:
                     break
             
-            Sofa.Simulation.animate(self.rootNode, self.rootNode.dt.value)
+            Sofa.Simulation.animate(self.root_node, self.root_node.dt.value)
             
-            pbarSimu.update(1)
-        pbarSimu.close()
+            pbar_simu.update(1)
+        pbar_simu.close()
         
-        for mecaId in range(0, nbrMeca):
-            if (self.totalError[mecaId] > self.epsilon):
-                self.regressionFailed = True
+        for meca_id in range(0, nbr_meca):
+            if self.total_error[meca_id] > self.epsilon:
+                self.regression_failed = True
                 return False
         
         return True
@@ -267,9 +268,9 @@ class RegressionSceneData:
 
     def replayReferences(self):
         Sofa.Gui.GUIManager.Init("myscene", "qglviewer")
-        Sofa.Gui.GUIManager.createGUI(self.rootNode, __file__)
+        Sofa.Gui.GUIManager.createGUI(self.root_node, __file__)
         Sofa.Gui.GUIManager.SetDimension(1080, 1080)
-        Sofa.Gui.GUIManager.MainLoop(self.rootNode)
+        Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
 
 
