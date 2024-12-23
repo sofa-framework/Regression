@@ -1,6 +1,7 @@
 import os
 import argparse
 import sys
+import numpy as np
 
 from tqdm import tqdm
 
@@ -151,6 +152,8 @@ if __name__ == '__main__':
     else:
         nbr_scenes = reg_prog.compare_all_sets_references()
 
+    np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
+    
     print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
     print ("### Number of scenes Done:  " + str(nbr_scenes))
     if args.write_mode is False:
