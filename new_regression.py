@@ -18,21 +18,23 @@ else:
     sofapython3_path = os.environ["SOFA_ROOT"] + "/lib/python3/site-packages"
     sys.path.append(sofapython3_path)
 
+import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneParsing as RegressionSceneParsing
 
 
 class RegressionProgram:
-    def __init__(self, input_folder, disable_progress_bar = False):
+    def __init__(self, input_folder, disable_progress_bar = False, verbose = False):
         self.scene_sets = []  # List <RegressionSceneList>
         self.disable_progress_bar = disable_progress_bar
+        self.verbose = verbose
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
                 if file.endswith(".regression-tests"):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path, self.disable_progress_bar)
+                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
@@ -124,6 +126,12 @@ def parse_args():
         help='If set, will disable progress bars',
         action='store_true'
     )
+    parser.add_argument(
+        "--verbose",
+        dest="verbose",
+        help='If set, will display more information',
+        action='store_true'
+    )
     
     cmdline_args = parser.parse_args()
 
@@ -136,7 +144,7 @@ if __name__ == '__main__':
     args = parse_args()
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.progress_bar_is_disabled)
+        reg_prog = RegressionProgram(args.input, args.progress_bar_is_disabled, args.verbose)
     else:
         exit("Error: Argument is required ! Quitting.")
 

@@ -6,7 +6,7 @@ from tqdm import tqdm
 ## This class is responsible for loading a file.regression-tests to gather the list of scene to test with all arguments
 ## It will provide the API to launch the tests or write refs on all scenes contained in this file
 class RegressionSceneList:
-    def __init__(self, file_path, disable_progress_bar = False):
+    def __init__(self, file_path, disable_progress_bar = False, verbose = False):
         """
         /// Path to the file.regression-tests containing the list of scene to tests with all arguments
         std::string filePath;
@@ -17,6 +17,7 @@ class RegressionSceneList:
         self.nbr_errors = 0
         self.ref_dir_path = None
         self.disable_progress_bar = disable_progress_bar
+        self.verbose = verbose
 
 
     def get_nbr_scenes(self):
@@ -67,6 +68,9 @@ class RegressionSceneList:
 
 
     def write_references(self, id_scene, print_log = False):
+        if self.verbose:
+            print(f'Writing reference files for {self.scenes[id_scene].file_path}.')
+
         self.scenes[id_scene].load_scene()
         if print_log is True:
             self.scenes[id_scene].print_meca_objs()
@@ -87,10 +91,14 @@ class RegressionSceneList:
 
 
     def compare_references(self, id_scene):
+        if self.verbose:
+            self.scenes[id_scene].print_info()
+
         try:
             self.scenes[id_scene].load_scene()
         except Exception as e:
             self.nbr_errors = self.nbr_errors + 1
+            print(f'Error while trying to load: {str(e)}')
         else:
             result = self.scenes[id_scene].compare_references()
             if not result:
