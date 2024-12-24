@@ -158,9 +158,10 @@ if __name__ == '__main__':
     print ("### Number of scenes Done:  " + str(nbr_scenes))
     if args.write_mode is False:
         print ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()))
-        #np.set_printoptions(precision=8)
         reg_prog.log_errors_in_sets()
+        if reg_prog.nbr_error_in_sets() > 0:
+            sys.exit(1) # exit with error(s)
 
-    sys.exit()
+    sys.exit(0) # exit without error
 
     
