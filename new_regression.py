@@ -6,14 +6,8 @@ import numpy as np
 from tqdm import tqdm
 
 if "SOFA_ROOT" not in os.environ:
-    sofa_real_root = "/Users/fred/Work/sofa"
-    sofa_root = sofa_real_root + "/build/current-ninja"
-    sofapython3_path = sofa_root + "/lib/python3/site-packages"
-    sofa_build_configuration = "Release"
-
-    os.environ["SOFA_ROOT"] = sofa_root
-    os.environ["SOFA_BUILD_CONFIGURATION"] = sofa_build_configuration
-    sys.path.append(sofapython3_path)
+    print('SOFA_ROOT environment variable has not been detected, quitting.')
+    exit(1)
 else:
     sofapython3_path = os.environ["SOFA_ROOT"] + "/lib/python3/site-packages"
     sys.path.append(sofapython3_path)
