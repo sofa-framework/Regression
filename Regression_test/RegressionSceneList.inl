@@ -217,9 +217,11 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         if (results.size() > 5)
             period = std::stoi(results[5]);
 
+
+
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
-        sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
+        sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+(scenesDir[scenesDir.size()-1] == '/' ? "" : "/")), scenesDir.size()+1 );
         std::string reference = fullPathReferenceDir + "/" + sceneFromList + ".reference";
 
 #ifdef WIN32
