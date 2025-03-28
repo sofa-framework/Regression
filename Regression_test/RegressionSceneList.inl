@@ -113,13 +113,13 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
     }
 
     std::string fullPathReferenceDir;
-    //Check if reference dir starts with $REFERENCE_DIR
-    if (referencesDir.starts_with("$REFERENCE_DIR"))
+    //Check if reference dir starts with $REGRESSION_DIR
+    if (referencesDir.starts_with("$REGRESSION_DIR"))
     {
-        char* refDirVar = getenv("REFERENCE_DIR");
+        char* refDirVar = getenv("$REGRESSION_DIR");
         if (refDirVar == nullptr)
         {
-            msg_error(msgHeader) << "The reference path contains '$REFERENCE_DIR', and the environment variable REFERENCE_DIR is not set.";
+            msg_error(msgHeader) << "The reference path contains '$REGRESSION_DIR', and the environment variable $REGRESSION_DIR is not set.";
             return;
         }
         fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(14);
