@@ -122,6 +122,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
             msg_error(msgHeader) << "The reference path contains '$REGRESSION_DIR', and the environment variable REGRESSION_DIR is not set.";
             return;
         }
+        msg_info()<<"Use REGRESSION_DIR as prefix"<<std::endl;
         fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(14);
     }
     else
@@ -132,6 +133,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
     // Check if the reference folder does exist
     if (!referencesDir.empty())
     {
+        msg_info()<<"Regression file path set for '"<<listFile<<"' : "<<fullPathReferenceDir<<std::endl;
         if (!sofa::helper::system::FileSystem::exists(fullPathReferenceDir))
         {
             // relative reference path is wrong, check if the user set a env var instead
