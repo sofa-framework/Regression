@@ -123,7 +123,7 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
             return;
         }
         msg_info(msgHeader)<<"Use REGRESSION_DIR as prefix";
-        fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(14);
+        fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(15);
     }
     else
     {
