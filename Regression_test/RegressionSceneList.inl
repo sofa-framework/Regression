@@ -32,6 +32,8 @@ using sofa::helper::system::FileSystem;
 
 #include <gtest/gtest.h>
 
+#include <string>
+
 namespace sofa
 {
 
@@ -110,7 +112,23 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
             break;
     }
 
-    std::string fullPathReferenceDir = listDir + "/" + referencesDir;
+    std::string fullPathReferenceDir;
+    //Check if reference dir starts with $REFERENCE_DIR
+    if (referencesDir.starts_with("$REFERENCE_DIR"))
+    {
+        char* refDirVar = getenv("REFERENCE_DIR");
+        if (refDirVar == nullptr)
+        {
+            msg_error(msgHeader) << "The reference path contains '$REFERENCE_DIR', and the environment variable REFERENCE_DIR is not set.";
+            return;
+        }
+        fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(14);
+    }
+    else
+    {
+        fullPathReferenceDir = listDir + "/" + referencesDir;
+    }
+
     // Check if the reference folder does exist
     if (!referencesDir.empty())
     {
