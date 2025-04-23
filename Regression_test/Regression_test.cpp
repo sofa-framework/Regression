@@ -27,7 +27,7 @@ std::string BaseRegression_test::getTestName(const ::testing::TestParamInfo<Regr
         pos++;
 
     std::string name = path.substr(pos);
-    name = name.substr(0, name.find_last_of(".")); // get name of the file without extension
+    std::replace(name.begin(), name.end(), '.', '_');
 
     return name;
 }
