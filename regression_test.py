@@ -16,8 +16,6 @@ from pathlib import Path
 # 4 (optional) - Refrence plugin directory. If not set, will take the parent dir of this file.
 
 
-os.system(sys.argv[1])
-
 os.environ["REGRESSION_SCENES_DIR"] = sys.argv[2]
 
 os.environ["SOFA_ROOT"] = sys.argv[3]
@@ -29,3 +27,7 @@ if len(sys.argv) == 5:
 else:
     script_dir = Path( __file__ ).parent.absolute()
     os.environ["REGRESSION_DIR"] = script_dir
+
+
+
+os.system(sys.argv[1])
