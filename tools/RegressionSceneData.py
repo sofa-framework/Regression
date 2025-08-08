@@ -23,44 +23,6 @@ def is_simulated(node):
     return False
 
 
-def export_json():
-
-    numpy_array_one = np.array([[11 ,22, 33], [44, 55, 66], [77, 88, 99]])
-    numpy_array_two = np.array([[51, 61, 91], [121 ,118, 127]])
-
-    # Serialization
-    numpy_data = {"arrayOne": numpy_array_one, "arrayTwo": numpy_array_two}
-    print("serialize NumPy array into JSON and write into a file")
-    with gzip.open("numpyData.json.gz", 'w') as zipfile:
-        for key in numpy_data:
-            print(numpy_data[key])
-
-        #write_file.write(json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4))
-        #res = json.dumps(numpyData, cls=NumpyArrayEncoder, indent=4)
-        #print(res)
-        #json.dump(numpyData, zipfile, cls=NumpyArrayEncoder)
-        zipfile.write(json.dumps(numpy_data, cls=NumpyArrayEncoder).encode('utf-8'))
-    
-    print('Done writing serialized NumPy array into file')
-
-def read_json():
-    # Deserialization
-    print("Started Reading JSON file")
-    with gzip.open("numpyData.json.gz", 'r') as zipfile:
-
-    #with open("numpyData.json", "r") as read_file:
-        print("Converting JSON encoded data into Numpy array")
-        decoded_array = json.loads(zipfile.read().decode('utf-8'))
-        #decoded_array = json.load(zipfile)
-
-        final_numpy_array_one = np.asarray(decoded_array["arrayOne"])
-        print("NumPy Array One")
-        print(final_numpy_array_one)
-        final_numpy_array_two = np.asarray(decoded_array["arrayTwo"])
-        print("NumPy Array Two")
-        print(final_numpy_array_two)
-
-
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -187,7 +149,6 @@ class RegressionSceneData:
         for step in range(0, self.steps + 1):
             # export rest position, final position + modulo steps:
             if step == 0 or counter_step >= modulo_step or step == self.steps:
-                #print("step: " + str(step) + " | counter_step: " + str(counter_step) + " | modulo_step: " + str(modulo_step) + " | dt: " + str(self.rootNode.dt.value*(step)))
                 for meca_id in range(0, nbr_meca):
                     numpy_data[meca_id][self.root_node.dt.value * step] = np.copy(self.meca_objs[meca_id].position.value)
                 counter_step = 0
@@ -203,8 +164,6 @@ class RegressionSceneData:
             output_file = pathlib.Path(self.filenames[meca_id])
             output_file.parent.mkdir(exist_ok=True, parents=True)
 
-            #for key in numpy_data[meca_id]:
-            #    print("key: %s , value: %s" % (key, numpy_data[meca_id][key][820]))
             with gzip.open(self.filenames[meca_id], 'wb') as write_file:
                 write_file.write(json.dumps(numpy_data[meca_id], cls=NumpyArrayEncoder).encode('utf-8'))
 
