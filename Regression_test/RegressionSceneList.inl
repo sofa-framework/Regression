@@ -32,6 +32,8 @@ using sofa::helper::system::FileSystem;
 
 #include <gtest/gtest.h>
 
+#include <string>
+
 namespace sofa
 {
 
@@ -110,10 +112,28 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
             break;
     }
 
-    std::string fullPathReferenceDir = listDir + "/" + referencesDir;
+    std::string fullPathReferenceDir;
+    //Check if reference dir starts with $REGRESSION_DIR
+    if (referencesDir.starts_with("$REGRESSION_DIR"))
+    {
+        char* refDirVar = getenv("REGRESSION_DIR");
+        if (refDirVar == nullptr)
+        {
+            msg_error(msgHeader) << "The reference path contains '$REGRESSION_DIR', and the environment variable REGRESSION_DIR is not set.";
+            return;
+        }
+        msg_info(msgHeader)<<"Use REGRESSION_DIR as prefix";
+        fullPathReferenceDir = std::string(refDirVar) + referencesDir.substr(15);
+    }
+    else
+    {
+        fullPathReferenceDir = listDir + "/" + referencesDir;
+    }
+
     // Check if the reference folder does exist
     if (!referencesDir.empty())
     {
+        msg_info(msgHeader)<<"Regression file path : "<<fullPathReferenceDir;
         if (!sofa::helper::system::FileSystem::exists(fullPathReferenceDir))
         {
             // relative reference path is wrong, check if the user set a env var instead
@@ -197,9 +217,11 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
         if (results.size() > 5)
             period = std::stoi(results[5]);
 
+
+
         std::string scene = listDir + "/" + sceneFromList;
         std::string sceneFromScenesDir(scene);
-        sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+"/"), scenesDir.size()+1 );
+        sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+(scenesDir[scenesDir.size()-1] == '/' ? "" : "/")), scenesDir.size()+1 );
         std::string reference = fullPathReferenceDir + "/" + sceneFromList + ".reference";
 
 #ifdef WIN32

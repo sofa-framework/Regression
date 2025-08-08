@@ -15,7 +15,16 @@ SOFA Regression Documentation
 ## 1.a - Non regression-tests files ##
 The **Regression_test** program will search for **\*.regression-tests** files in the target directory (SOFA directory).
 This file contains a list of scene to be tested. 
-Each line of the list file must contain: 
+
+The first information that is not a comment in this file should be the path to the reference folder containing all data needed for regression testing. This path should be relative to this folder path. 
+The folder should be structured as the folder containing this file and each reference of each scene should have a relative path to the reference folder equivalent to the relative path of the corresponding scene in this folder. 
+
+--> e.g. for the scene in `very/specific/path/to/MyScene.scn`, a reference with the same name as the scene should be found in `referenceFolder/very/specific/path/to` 
+
+--> A special string can be use while specifying this path: `$REGRESSION_DIR`. If used at the beginning of the path, then it will be used as an absolute path with `$REGRESSION_DIR` replaced by the content of the environment variable with the same name. 
+Use this, when the reference are not in the repository containing the examples but directly in the repo Regression
+
+Each following line of the list file must contain: 
 1. A local path to the scene
 2. The number of simulation steps to run
 3. A numerical epsilon for comparison 
@@ -25,6 +34,10 @@ Each line of the list file must contain:
 See for example: SOFA_DIR/examples/RegressionStateScenes.regression-tests
 ```
 ### Demo scenes ###
+# References folder
+../path/to/the/references (OR $REGRESSION_DIR/path/to/the/references)
+
+# Tested Scenes 
 Demos/caduceus.scn 100 1e-3 0 1
 Demos/TriangleSurfaceCutting.scn 100 1e-4 1 1
 Demos/liver.scn 100 1e-4 1 1
@@ -62,7 +75,8 @@ For the moment non regression tests class are:
 ## 2.a - Full solution: By setting up environment
 The program **Regression_test** can not take arguments because of its internal mechanism. Thus to run it correctly, several Environment variables need to be set :
 - REGRESSION_SCENES_DIR : path to the root folder containing the scenes (usually SOFA_SRC_DIR/examples)
-- REGRESSION_REFERENCES_DIR : path to the root folder containing the references (this repository/References)
+- REGRESSION_REFERENCES_DIR : path to the root folder containing the references (this repository/References). The reference file normally provides a path to the reference directory, but when it doesn't exist, this will be the fallback.
+- REGRESSION_DIR : path to the root directory of this project sources. This is only required when the references used by your project are in the Regression repo (this is the case for SOFA). If so, the path specified in your reference file should start with `$REGRESSION_DIR`
 - SOFA_ROOT : path to sofa build directory.
 - SOFA_PLUGIN_PATH : path to the plugin library to be loaded by "required plugin" in the scenes (usually SOFA_ROOT/lib)
 
