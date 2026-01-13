@@ -69,7 +69,7 @@ class RegressionSceneList:
 
     def write_references(self, id_scene, print_log = False):
         if self.verbose:
-            print(f'Writing reference files for {self.scenes_data_sets[id_scene].file_path}.')
+            print(f'Writing reference files for {self.scenes_data_sets[id_scene].file_scene_path}.')
 
         self.scenes_data_sets[id_scene].load_scene()
         if print_log is True:
