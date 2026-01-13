@@ -206,11 +206,16 @@ class RegressionSceneData:
             if simu_time == keyframes[frame_step]:
                 for meca_id in range(0, nbr_meca):
                     meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
-                    data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])]) - meca_dofs
+                    data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
+                    if (meca_dofs.size != data_ref.size):
+                        print(f'Error while reading reference for file {self.file_scene_path} at mechanicalObject id: {str(meca_id)}. Reference size: {data_ref.size} vs current size: {meca_dofs.size}')
+                        return False
+                    
+                    data_diff = data_ref - meca_dofs
                     
                     # Compute total distance between the 2 sets
-                    full_dist = np.linalg.norm(data_ref)
-                    error_by_dof = full_dist / float(data_ref.size)
+                    full_dist = np.linalg.norm(data_diff)
+                    error_by_dof = full_dist / float(data_diff.size)
                     
                     if debug_info:
                         print (str(step) + "| " + self.meca_objs[meca_id].name.value + " | full_dist: " + str(full_dist) + " | error_by_dof: " + str(error_by_dof) + " | nbrDofs: " + str(data_ref.size))
