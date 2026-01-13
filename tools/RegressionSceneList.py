@@ -13,7 +13,7 @@ class RegressionSceneList:
         """
         self.file_path = file_path
         self.file_dir = os.path.dirname(file_path)
-        self.scenes = [] # List<RegressionSceneData>
+        self.scenes_data_sets = [] # List<RegressionSceneData>
         self.nbr_errors = 0
         self.ref_dir_path = None
         self.disable_progress_bar = disable_progress_bar
@@ -21,13 +21,13 @@ class RegressionSceneList:
 
 
     def get_nbr_scenes(self):
-        return len(self.scenes)
+        return len(self.scenes_data_sets)
     
     def get_nbr_errors(self):
         return self.nbr_errors
     
     def log_scenes_errors(self):
-        for scene in self.scenes:
+        for scene in self.scenes_data_sets:
             scene.log_errors()
 
     def process_file(self):
@@ -64,21 +64,21 @@ class RegressionSceneList:
                                                                      self.disable_progress_bar)
             
                 #scene_data.printInfo()
-                self.scenes.append(scene_data)
+                self.scenes_data_sets.append(scene_data)
 
 
     def write_references(self, id_scene, print_log = False):
         if self.verbose:
-            print(f'Writing reference files for {self.scenes[id_scene].file_path}.')
+            print(f'Writing reference files for {self.scenes_data_sets[id_scene].file_path}.')
 
-        self.scenes[id_scene].load_scene()
+        self.scenes_data_sets[id_scene].load_scene()
         if print_log is True:
-            self.scenes[id_scene].print_meca_objs()
+            self.scenes_data_sets[id_scene].print_meca_objs()
             
-        self.scenes[id_scene].write_references()
+        self.scenes_data_sets[id_scene].write_references()
 
     def write_all_references(self):
-        nbr_scenes = len(self.scenes)
+        nbr_scenes = len(self.scenes_data_sets)
         pbar_scenes = tqdm(total=nbr_scenes, disable=self.disable_progress_bar)
         pbar_scenes.set_description("Write all scenes from: " + self.file_path)
         
@@ -92,20 +92,20 @@ class RegressionSceneList:
 
     def compare_references(self, id_scene):
         if self.verbose:
-            self.scenes[id_scene].print_info()
+            self.scenes_data_sets[id_scene].print_info()
 
         try:
-            self.scenes[id_scene].load_scene()
+            self.scenes_data_sets[id_scene].load_scene()
         except Exception as e:
             self.nbr_errors = self.nbr_errors + 1
             print(f'Error while trying to load: {str(e)}')
         else:
-            result = self.scenes[id_scene].compare_references()
+            result = self.scenes_data_sets[id_scene].compare_references()
             if not result:
                 self.nbr_errors = self.nbr_errors + 1
         
     def compare_all_references(self):
-        nbr_scenes = len(self.scenes)
+        nbr_scenes = len(self.scenes_data_sets)
         pbar_scenes = tqdm(total=nbr_scenes, disable=self.disable_progress_bar)
         pbar_scenes.set_description("Compare all scenes from: " + self.file_path)
         
@@ -118,7 +118,7 @@ class RegressionSceneList:
 
 
     def replay_references(self, id_scene):
-        self.scenes[id_scene].load_scene()
-        self.scenes[id_scene].replay_references()
+        self.scenes_data_sets[id_scene].load_scene()
+        self.scenes_data_sets[id_scene].replay_references()
         
         

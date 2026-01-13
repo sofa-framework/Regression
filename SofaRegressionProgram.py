@@ -14,7 +14,7 @@ else:
 
 import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
-import tools.RegressionSceneParsing as RegressionSceneParsing
+import tools.RegressionSceneList as RegressionSceneList
 
 
 class RegressionProgram:
@@ -28,7 +28,7 @@ class RegressionProgram:
                 if file.endswith(".regression-tests"):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneParsing.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
+                    scene_list = RegressionSceneList.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
