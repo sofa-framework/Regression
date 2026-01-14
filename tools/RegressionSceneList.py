@@ -61,7 +61,7 @@ class RegressionSceneList:
             if len(values) == 5:
                 scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
                                                                      values[1], values[2], values[3], values[4],
-                                                                     self.disable_progress_bar)
+                                                                     self.disable_progress_bar, self.verbose)
             
                 #scene_data.printInfo()
                 self.scenes_data_sets.append(scene_data)

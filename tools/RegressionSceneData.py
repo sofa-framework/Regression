@@ -8,7 +8,6 @@ import pathlib
 import Sofa
 import Sofa.Gui
 
-debug_info = False
 
 def is_simulated(node):
     if node.hasODESolver():
@@ -32,7 +31,7 @@ class NumpyArrayEncoder(JSONEncoder):
 
 class RegressionSceneData:
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
-                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False):
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = False):
         """
         /// Path to the file scene to test
         std::string m_fileScenePath;
@@ -63,6 +62,7 @@ class RegressionSceneData:
         self.regression_failed = False
         self.root_node = None
         self.disable_progress_bar = disable_progress_bar
+        self.verbose = verbose
 
     def print_info(self):
         print("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
@@ -217,7 +217,7 @@ class RegressionSceneData:
                     full_dist = np.linalg.norm(data_diff)
                     error_by_dof = full_dist / float(data_diff.size)
                     
-                    if debug_info:
+                    if self.verbose:
                         print (str(step) + "| " + self.meca_objs[meca_id].name.value + " | full_dist: " + str(full_dist) + " | error_by_dof: " + str(error_by_dof) + " | nbrDofs: " + str(data_ref.size))
 
                     self.total_error[meca_id] = self.total_error[meca_id] + full_dist
