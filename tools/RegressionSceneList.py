@@ -119,6 +119,7 @@ class RegressionSceneList:
 
     def replay_references(self, id_scene):
         self.scenes_data_sets[id_scene].load_scene()
+        self.scenes_data_sets[id_scene].add_compare_state()
         self.scenes_data_sets[id_scene].replay_references()
         
         

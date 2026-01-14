@@ -20,6 +20,37 @@ def is_simulated(node):
     return False
 
 
+class ReplayState(Sofa.Core.Controller):
+    def __init__(self, node, slave_mo, state_filename, **kwargs):
+        super().__init__(**kwargs)
+        self.node = node
+        self.slave_mo = slave_mo
+        self.keyframes = []
+        self.frame_step = 0
+        self.t_sim = 0.0
+
+        with gzip.open(state_filename, 'r') as zipfile:
+            self.ref_data = json.loads(zipfile.read().decode('utf-8'))
+            for key in self.ref_data:
+                self.keyframes.append(float(key))
+        
+        if (self.keyframes[0] == 0.0): # frame 0.0
+            tmp_position = np.asarray(self.ref_data[str(self.keyframes[0])])
+            self.slave_mo.position = tmp_position.tolist()
+            self.frame_step = 1
+        #print('nbr Frames', len(self.keyframes))
+           
+    def onAnimateEndEvent(self, event):
+       dt = float(self.node.getRootContext().dt.value)
+       self.t_sim += dt
+
+       if abs(self.t_sim - self.keyframes[self.frame_step]) < 0.000001:
+           tmp_position = np.asarray(self.ref_data[str(self.keyframes[self.frame_step])])
+           self.slave_mo.position = tmp_position.tolist()
+           #print('tmp_position: ', tmp_position.shape)
+           self.frame_step += 1
+
+
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -97,9 +128,12 @@ class RegressionSceneData:
     def add_compare_state(self):
         counter = 0
         for meca_obj in self.meca_objs:
-            _filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
+            #_filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
+            _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + meca_obj.name.value + ".json.gz"
             
-            meca_obj.getContext().addObject('CompareState', filename=_filename)
+            compareNode = meca_obj.getContext().addChild("CompareStateNode_"+str(counter))
+            cloudPoint = compareNode.addObject('VisualPointCloud', pointSize=10, drawMode="Point", color="green")
+            compareNode.addObject(ReplayState(node=compareNode, slave_mo=cloudPoint, state_filename=_filename))
             counter = counter+1
 
 
