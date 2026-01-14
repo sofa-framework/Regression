@@ -6,8 +6,6 @@ import gzip
 import pathlib
 
 import Sofa
-import Sofa.Gui
-
 
 def is_simulated(node):
     if node.hasODESolver():
@@ -243,10 +241,17 @@ class RegressionSceneData:
         return True
     
 
-    def replayReferences(self):
-        Sofa.Gui.GUIManager.Init("myscene", "qglviewer")
+    def replay_references(self):
+        
+        # Import the GUI package
+        import SofaImGui
+        import Sofa.Gui
+        #supported_gui = Sofa.Gui.GUIManager.ListSupportedGUI(",")
+        self.root_node.bbox = "-10 -10 -10 10 10 10"
+        #print ("Supported GUIs are " + supported_gui)
+        Sofa.Gui.GUIManager.Init("myscene", "imgui")
         Sofa.Gui.GUIManager.createGUI(self.root_node, __file__)
-        Sofa.Gui.GUIManager.SetDimension(1080, 1080)
+        Sofa.Gui.GUIManager.SetDimension(1920, 1080)
         Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
 
