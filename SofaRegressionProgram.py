@@ -16,6 +16,7 @@ import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
 
+regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
     def __init__(self, input_folder, disable_progress_bar = False, verbose = False):
@@ -25,7 +26,7 @@ class RegressionProgram:
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
-                if file.endswith(".regression-tests"):
+                if file.endswith(regression_file_extension):
                     file_path = os.path.join(root, file)
 
                     scene_list = RegressionSceneList.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
@@ -94,8 +95,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Regression arguments')
     parser.add_argument('--input', 
-                        dest='input', 
-                        help='help input', 
+                        dest='input',
+                        help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
+                             f' processed and compared against a reference for regression detection.',
                         type=str)
     
     parser.add_argument('--output', 
