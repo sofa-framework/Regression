@@ -124,7 +124,7 @@ class RegressionSceneList:
             self.nbr_errors = self.nbr_errors + 1
             print(f'Error while trying to load: {str(e)}')
         else:
-            result = self.scenes_data_sets[id_scene].compare_references()
+            result = self.scenes_data_sets[id_scene].compare_csv_references()
             if not result:
                 self.nbr_errors = self.nbr_errors + 1
         
