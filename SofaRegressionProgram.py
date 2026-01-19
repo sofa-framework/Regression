@@ -19,7 +19,7 @@ import tools.RegressionSceneList as RegressionSceneList
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, disable_progress_bar = False, verbose = False):
+    def __init__(self, input_folder, filter, disable_progress_bar = False, verbose = False):
         self.scene_sets = []  # List <RegressionSceneList>
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
@@ -29,7 +29,7 @@ class RegressionProgram:
                 if file.endswith(regression_file_extension):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
+                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
@@ -104,6 +104,11 @@ def parse_args():
                         dest='output', 
                         help="Directory where to export data preprocessed",
                         type=str)
+
+    parser.add_argument('--filter',
+                        dest='filter',
+                        help="A regex filter to select scenes to test",
+                        type=str)
     
     parser.add_argument('--replay', 
                         dest='replay', 
@@ -140,7 +145,7 @@ if __name__ == '__main__':
     args = parse_args()
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.progress_bar_is_disabled, args.verbose)
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose)
     else:
         exit("Error: Argument is required ! Quitting.")
 
