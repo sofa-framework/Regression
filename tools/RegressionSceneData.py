@@ -4,6 +4,7 @@ from json import JSONEncoder
 import numpy as np
 import gzip
 import pathlib
+import csv
 
 import Sofa
 
@@ -169,13 +170,72 @@ class RegressionSceneData:
             self.parse_node(self.root_node, 0)
             counter = 0
             for mecaObj in self.meca_objs:
-                _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
+                _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".csv.gz"
                 self.filenames.append(_filename)
                 counter = counter+1
         
 
+    def write_CSV_references(self):
+        pbar_simu = tqdm(total=self.steps, disable=self.disable_progress_bar)
+        pbar_simu.set_description("Simulate: " + self.file_scene_path)
 
-    def write_references(self):
+        # Prepare per-mechanical-object CSV rows
+        nbr_meca = len(self.meca_objs)
+        csv_rows = [[] for _ in range(nbr_meca)]
+
+        counter_step = 0
+        modulo_step = self.steps / self.dump_number_step
+        dt = self.root_node.dt.value
+
+        for step in range(0, self.steps + 1):
+            if step == 0 or counter_step >= modulo_step or step == self.steps:
+                t = dt * step
+
+                for meca_id in range(nbr_meca):
+                    positions = np.asarray(self.meca_objs[meca_id].position.value)
+                    # positions shape: (N, 3)
+
+                    row = [t]
+                    row.extend(positions.reshape(-1).tolist())  # flatten vec3d
+
+                    csv_rows[meca_id].append(row)
+
+                counter_step = 0
+
+            Sofa.Simulation.animate(self.root_node, dt)
+            counter_step += 1
+            pbar_simu.update(1)
+
+        pbar_simu.close()
+
+        # Write CSV files (gzipped, like your JSON)
+        for meca_id in range(nbr_meca):
+            output_file = pathlib.Path(self.filenames[meca_id])
+            output_file.parent.mkdir(exist_ok=True, parents=True)
+
+            with gzip.open(self.filenames[meca_id], "wt", newline="") as f:
+                writer = csv.writer(f)
+
+                dof_per_point = self.meca_objs[meca_id].position.value.shape[1]
+                n_points = self.meca_objs[meca_id].position.value.shape[0]
+
+                f.write(f"# dof_per_point={dof_per_point}\n")
+                f.write(f"# num_points={n_points}\n")
+
+                if dof_per_point == 2:
+                    f.write("# layout=time,X0,Y1,...,Xn,Yn\n")
+                elif dof_per_point == 3:
+                    f.write("# layout=time,X0,Y1,Z1,...,Xn,Yn,Zn\n")
+                elif dof_per_point == 7:
+                    f.write("# layout=time,X0,Y1,Z1,Qx1,Qy1,Qz1,Qw1,...,Xn,Yn,Zn,QxN,QyN,QzN1,QwN\n")
+                else:
+                    f.write("# layout=unknown\n")
+
+                writer.writerows(csv_rows[meca_id])
+
+        Sofa.Simulation.unload(self.root_node)
+
+    def write_JSON_references(self):
         pbar_simu = tqdm(total=self.steps, disable=self.disable_progress_bar)
         pbar_simu.set_description("Simulate: " + self.file_scene_path)
         

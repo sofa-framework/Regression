@@ -99,7 +99,7 @@ class RegressionSceneList:
         if print_log is True:
             self.scenes_data_sets[id_scene].print_meca_objs()
             
-        self.scenes_data_sets[id_scene].write_references()
+        self.scenes_data_sets[id_scene].write_CSV_references()
 
     def write_all_references(self):
         nbr_scenes = len(self.scenes_data_sets)
