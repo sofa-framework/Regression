@@ -52,7 +52,8 @@ class RegressionSceneList:
                     print(f'Error: Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
                     return
 
-                print(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}')
+                if self.verbose:
+                    print(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}')
                 count = count + 1
                 continue
 
