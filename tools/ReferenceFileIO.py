@@ -3,6 +3,7 @@ import csv
 import json
 from json import JSONEncoder
 
+regression_version = "1.0"
 
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
@@ -45,6 +46,7 @@ def read_CSV_reference_file(file_path):
 def write_CSV_reference_file(file_path, dof_per_point, num_points, csv_rows):
     with gzip.open(file_path, "wt", newline="") as f:
         writer = csv.writer(f)
+        f.write(f"# format_version={regression_version}\n")
         f.write(f"# dof_per_point={dof_per_point}\n")
         f.write(f"# num_points={num_points}\n")
 
