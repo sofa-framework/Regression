@@ -375,6 +375,30 @@ class RegressionSceneData:
         return True
     
 
+
+    def compare_legacy_references(self):
+        pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
+        pbar_simu.set_description("compare_legacy_references: " + self.file_scene_path)
+
+        nbr_meca = len(self.meca_objs)
+
+        # Reference data
+        ref_times = []          # shared timeline
+        ref_values = []         # List[List[np.ndarray]]
+
+        self.total_error = []
+        self.error_by_dof = []
+        self.nbr_tested_frame = 0
+        self.regression_failed = False
+
+        # --------------------------------------------------
+        # Load legacy reference files
+        # --------------------------------------------------
+        
+
+        return True
+
+
     def replay_references(self):
         
         # Import the GUI package

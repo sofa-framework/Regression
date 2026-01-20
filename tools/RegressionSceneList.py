@@ -20,6 +20,7 @@ class RegressionSceneList:
         self.ref_dir_path = None
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
+        self.legacy_mode = False
 
 
     def get_nbr_scenes(self):
@@ -31,6 +32,9 @@ class RegressionSceneList:
     def log_scenes_errors(self):
         for scene in self.scenes_data_sets:
             scene.log_errors()
+    
+    def set_legacy_mode(self, legacy_mode):
+        self.legacy_mode = legacy_mode
 
     def process_file(self):
         with open(self.file_path, 'r') as the_file:
@@ -124,10 +128,16 @@ class RegressionSceneList:
             self.nbr_errors = self.nbr_errors + 1
             print(f'Error while trying to load: {str(e)}')
         else:
-            result = self.scenes_data_sets[id_scene].compare_references()
+            print(f'legacy_mode={self.legacy_mode}')
+            if self.legacy_mode:
+                result = self.scenes_data_sets[id_scene].compare_legacy_references()
+            else:
+                result = self.scenes_data_sets[id_scene].compare_references()
+            
             if not result:
                 self.nbr_errors = self.nbr_errors + 1
         
+
     def compare_all_references(self):
         nbr_scenes = len(self.scenes_data_sets)
         pbar_scenes = tqdm(total=nbr_scenes, disable=self.disable_progress_bar)
