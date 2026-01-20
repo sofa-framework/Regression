@@ -55,6 +55,62 @@ class NumpyArrayEncoder(JSONEncoder):
             return obj.tolist()
         return JSONEncoder.default(self, obj)
 
+# --------------------------------------------------
+# Helper: read the legacy state reference format
+# --------------------------------------------------
+def read_legacy_reference(filename, mechanical_object):
+    ref_data = []
+    times = []
+    values = []
+
+    # Infer layout from MechanicalObject
+    n_points, dof_per_point = mechanical_object.position.value.shape
+    expected_size = n_points * dof_per_point
+
+
+    with gzip.open(filename, "rt") as f:
+        for line in f:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            # Time marker
+            if line.startswith("T="):
+                current_time = float(line.split("=", 1)[1])
+                times.append(current_time)
+         
+            # Positions
+            elif line.startswith("X="):
+                if current_time is None:
+                    raise RuntimeError(f"X found before T in {filename}")
+
+                raw = line.split("=", 1)[1].strip().split()
+                flat = np.asarray(raw, dtype=float)
+
+                if flat.size != expected_size:
+                    raise ValueError(
+                        f"Legacy reference size mismatch in {filename}: "
+                        f"expected {expected_size}, got {flat.size}"
+                    )
+
+                values.append(flat.reshape((n_points, dof_per_point)))
+
+            # Velocity (ignored)
+            elif line.startswith("V="):
+                continue
+
+    if len(times) != len(values):
+        raise RuntimeError(
+            f"Legacy reference corrupted in {filename}: "
+            f"{len(times)} times vs {len(values)} X blocks"
+        )
+
+    return times, values
+
+
+
+
     
 def is_mapped(node):
     mapping = node.getMechanicalMapping()
@@ -305,7 +361,93 @@ class RegressionSceneData:
         # --------------------------------------------------
         # Load legacy reference files
         # --------------------------------------------------
-        
+        for meca_id in range(nbr_meca):
+            try:
+                times, values = read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz",
+                                                     self.meca_objs[meca_id])
+            except FileNotFoundError as e:
+                print(f"Error while reading legacy references: {str(e)}")
+                return False
+
+            # Keep timeline from first MechanicalObject
+            if meca_id == 0:
+                ref_times = times
+            else:
+                if len(times) != len(ref_times):
+                    print(
+                        f"Reference timeline mismatch for file {self.file_scene_path}, "
+                        f"MechanicalObject {meca_id}"
+                    )
+                    return False
+
+            ref_values.append(values)
+            self.total_error.append(0.0)
+            self.error_by_dof.append(0.0)
+
+        if self.verbose:
+            print(f"ref_times len: {len(ref_times)}\n")
+            print(f"ref_values[0] len: {len(ref_values[0])}\n")    
+            print(f"ref_values[0][0] shape: {ref_values[0][0].shape}\n")
+
+        # --------------------------------------------------
+        # Simulation + comparison
+        # --------------------------------------------------
+
+        frame_step = 0
+        nbr_frames = len(ref_times)
+        dt = self.root_node.dt.value
+
+        for step in range(0, self.steps + 1):
+            simu_time = dt * step
+
+            # Use tolerance for float comparison
+            if frame_step < nbr_frames and np.isclose(simu_time, ref_times[frame_step]):
+                for meca_id in range(nbr_meca):
+                    meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
+                    data_ref = ref_values[meca_id][frame_step]
+
+                    if meca_dofs.shape != data_ref.shape:
+                        print(
+                            f"Shape mismatch for file {self.file_scene_path}, "
+                            f"MechanicalObject {meca_id}: "
+                            f"reference {data_ref.shape} vs current {meca_dofs.shape}"
+                        )
+                        return False
+
+                    data_diff = data_ref - meca_dofs
+
+                    # Compute total distance between the 2 sets
+                    full_dist = np.linalg.norm(data_diff)
+                    error_by_dof = full_dist / float(data_diff.size)
+
+                    if self.verbose:
+                        print(
+                            f"{step} | {self.meca_objs[meca_id].name.value} | "
+                            f"full_dist: {full_dist} | "
+                            f"error_by_dof: {error_by_dof} | "
+                            f"nbrDofs: {data_ref.size}"
+                        )
+
+                    self.total_error[meca_id] += full_dist
+                    self.error_by_dof[meca_id] += error_by_dof
+
+                frame_step += 1
+                self.nbr_tested_frame += 1
+
+                # security exit if simulation steps exceed nbr_frames
+                if frame_step == nbr_frames:
+                    break
+
+            Sofa.Simulation.animate(self.root_node, dt)
+            
+            pbar_simu.update(1)
+        pbar_simu.close()
+
+        # Final regression returns value
+        for meca_id in range(nbr_meca):
+            if self.total_error[meca_id] > self.epsilon:
+                self.regression_failed = True
+                return False
 
         return True
 
