@@ -91,7 +91,7 @@ def read_legacy_reference(filename, mechanical_object):
                 if flat.size != expected_size:
                     raise ValueError(
                         f"Legacy reference size mismatch in {filename}: "
-                        f"expected {expected_size}, got {flat.size}"
+                        f"expected {expected_size}, got {flat.size}\n"
                     )
 
                 values.append(flat.reshape((n_points, dof_per_point)))
@@ -164,6 +164,8 @@ class RegressionSceneData:
             print("### Failed: " + self.file_scene_path)
             print("    ### Total Error per MechanicalObject: " + str(self.total_error))
             print("    ### Error by Dofs: " + str(self.error_by_dof))
+        elif self.nbr_tested_frame == 0:
+            print("### Failed: No frames were tested for " + self.file_scene_path)
         else:
             print ("### Success: " + self.file_scene_path + " | Number of key frames compared without error: " + str(self.nbr_tested_frame))
     
@@ -365,8 +367,11 @@ class RegressionSceneData:
             try:
                 times, values = read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz",
                                                      self.meca_objs[meca_id])
-            except FileNotFoundError as e:
-                print(f"Error while reading legacy references: {str(e)}")
+            except Exception as e:
+                print(
+                    f"Error while reading legacy references for MechanicalObject "
+                    f"{self.meca_objs[meca_id].name.value}: {str(e)}"
+                )
                 return False
 
             # Keep timeline from first MechanicalObject
