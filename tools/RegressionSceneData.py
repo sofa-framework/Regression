@@ -7,6 +7,14 @@ import pathlib
 
 import Sofa
 
+class TermColor:
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    CYAN = "\033[36m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+
 def is_simulated(node):
     if node.hasODESolver():
         return True
@@ -105,13 +113,14 @@ class RegressionSceneData:
         
     def log_errors(self):
         if self.regression_failed is True:
-            print("### Failed: " + self.file_scene_path)
+            print(f"### {TermColor.RED}[Failed]{TermColor.RESET} {self.file_scene_path}")
             print("    ### Total Error per MechanicalObject: " + str(self.total_error))
             print("    ### Error by Dofs: " + str(self.error_by_dof))
+        elif self.nbr_tested_frame == 0:
+            print(f"### {TermColor.RED}[Failed]{TermColor.RESET} No frames were tested for {self.file_scene_path}")
         else:
-            print ("### Success: " + self.file_scene_path + " | Number of key frames compared without error: " + str(self.nbr_tested_frame))
-    
-    
+            print(f"### {TermColor.GREEN}[Success]{TermColor.RESET} {self.file_scene_path} | Number of key frames compared without error: {self.nbr_tested_frame}")
+
     def print_meca_objs(self):
         print ("# Nbr Meca: " + str(len(self.meca_objs)))
         counter = 0
