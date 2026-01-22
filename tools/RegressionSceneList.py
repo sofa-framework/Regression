@@ -47,6 +47,13 @@ class RegressionSceneList:
             if count == 0:
                 self.ref_dir_path = os.path.join(self.file_dir, values[0])
                 self.ref_dir_path = os.path.abspath(self.ref_dir_path)
+
+                if not os.path.isdir(self.ref_dir_path):
+                    print(f'Error: Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
+                    return
+
+                if self.verbose:
+                    print(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}')
                 count = count + 1
                 continue
 
