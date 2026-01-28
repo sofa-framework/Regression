@@ -29,6 +29,17 @@ class NumpyArrayEncoder(JSONEncoder):
             return obj.tolist()
         return JSONEncoder.default(self, obj)
 
+    
+def is_mapped(node):
+    mapping = node.getMechanicalMapping()
+
+    if mapping is None:
+        return False
+    else:
+        return True
+    # no mapping in this node context
+
+
 
 class RegressionSceneData:
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
@@ -89,10 +100,11 @@ class RegressionSceneData:
     def parse_node(self, node, level = 0):
         for child in node.children:
             mstate = child.getMechanicalState()
-            if mstate:
-                if is_simulated(child):
+            if mstate and is_simulated(child):
+                
+                if self.meca_in_mapping is True or not is_mapped(child):
                     self.meca_objs.append(mstate)
-            
+
             self.parse_node(child, level + 1)
     
 
