@@ -38,7 +38,6 @@ class ReplayState(Sofa.Core.Controller):
             tmp_position = np.asarray(self.ref_data[str(self.keyframes[0])])
             self.slave_mo.position = tmp_position.tolist()
             self.frame_step = 1
-        #print('nbr Frames', len(self.keyframes))
            
     def onAnimateEndEvent(self, event):
        dt = float(self.node.getRootContext().dt.value)
@@ -47,7 +46,6 @@ class ReplayState(Sofa.Core.Controller):
        if abs(self.t_sim - self.keyframes[self.frame_step]) < 0.000001:
            tmp_position = np.asarray(self.ref_data[str(self.keyframes[self.frame_step])])
            self.slave_mo.position = tmp_position.tolist()
-           #print('tmp_position: ', tmp_position.shape)
            self.frame_step += 1
 
 
@@ -128,6 +126,7 @@ class RegressionSceneData:
     def add_compare_state(self):
         counter = 0
         for meca_obj in self.meca_objs:
+            # Use this filename format to be compatible with previous version
             #_filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
             _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + meca_obj.name.value + ".json.gz"
             
@@ -152,7 +151,7 @@ class RegressionSceneData:
             print(f'Error while trying to load {self.file_scene_path}')
             raise RuntimeError
         else:
-            Sofa.Simulation.init(self.root_node)
+            Sofa.Simulation.initRoot(self.root_node)
 
             # prepare ref files per mecaObjs:
             self.parse_node(self.root_node, 0)
@@ -280,9 +279,6 @@ class RegressionSceneData:
         # Import the GUI package
         import SofaImGui
         import Sofa.Gui
-        #supported_gui = Sofa.Gui.GUIManager.ListSupportedGUI(",")
-        self.root_node.bbox = "-10 -10 -10 10 10 10"
-        #print ("Supported GUIs are " + supported_gui)
         Sofa.Gui.GUIManager.Init("myscene", "imgui")
         Sofa.Gui.GUIManager.createGUI(self.root_node, __file__)
         Sofa.Gui.GUIManager.SetDimension(1920, 1080)
