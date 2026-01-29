@@ -538,10 +538,23 @@ class RegressionSceneData:
         pbar_simu.close()
 
         # Final regression returns value
+        if nbr_meca == 0:
+            self.regression_failed = True
+            return False
+
+        # use the same way of computing errors as legacy mode
+        mean_total_error = 0.0
+        mean_error_by_dof = 0.0
         for meca_id in range(nbr_meca):
-            if self.total_error[meca_id] > self.epsilon:
-                self.regression_failed = True
-                return False
+            mean_total_error += self.total_error[meca_id]
+            mean_error_by_dof += self.error_by_dof[meca_id]
+
+        mean_total_error = mean_total_error / float(nbr_meca)
+        mean_error_by_dof = mean_error_by_dof / float(nbr_meca)
+        print ("Mean Total Error: " + str(mean_total_error) + " | Mean Error by Dof: " + str(mean_error_by_dof) + "epsilon: " + str(self.epsilon))
+        if mean_error_by_dof > self.epsilon:
+            self.regression_failed = True
+            return False
 
         return True
 
