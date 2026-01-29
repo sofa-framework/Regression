@@ -101,7 +101,7 @@ class RegressionSceneData:
         # first check current node
         mstate = node.getMechanicalState()
         if mstate and is_simulated(node):
-            if self.meca_in_mapping is True or not is_mapped(node):
+            if self.meca_in_mapping is True or is_mapped(node) is False:
                 self.meca_objs.append(mstate)
                 if self.verbose:
                     print("  " * level + f"- Adding MechanicalObject: {mstate.name.value} from Node: {node.name.value}")

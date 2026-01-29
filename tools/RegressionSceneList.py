@@ -65,9 +65,12 @@ class RegressionSceneList:
             full_file_path = os.path.join(self.file_dir, values[0])
             full_ref_file_path = os.path.join(self.ref_dir_path, values[0])
 
-            if len(values) == 5:
+            meca_in_mapping = False
+            if values[3] == '1': # converting string to Bool always gives True
+                meca_in_mapping = True
+
                 scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
-                                                                     values[1], values[2], values[3], values[4],
+                                                                     values[1], values[2], meca_in_mapping, values[4],
                                                                      self.disable_progress_bar)
             
                 #scene_data.printInfo()
