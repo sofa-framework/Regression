@@ -133,7 +133,7 @@ class RegressionSceneData:
         # recursively check children
         for child in node.children:
             self.parse_node(child, level + 1)
-            
+
 
     def add_compare_state(self):
         counter = 0
@@ -160,7 +160,7 @@ class RegressionSceneData:
     def load_scene(self, format = "JSON"):
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
-            print(f'Error while trying to load {self.file_scene_path}')
+            print(f'{TermColor.RED}[Error]{TermColor.RESET} While trying to load {self.file_scene_path}')
             raise RuntimeError
         else:
             Sofa.Simulation.initRoot(self.root_node)
@@ -312,7 +312,7 @@ class RegressionSceneData:
                 self.error_by_dof.append(0.0)
 
             except FileNotFoundError as e:
-                print(f"Error while reading references: {str(e)}")
+                print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading references: {str(e)}")
                 return False
             except KeyError as e:
                 print(f"Missing metadata in reference file: {str(e)}")
@@ -339,6 +339,7 @@ class RegressionSceneData:
 
                     if meca_dofs.shape != data_ref.shape:
                         print(
+                            f"{TermColor.RED}[Error]{TermColor.RESET} "
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
                             f"reference {data_ref.shape} vs current {meca_dofs.shape}"
