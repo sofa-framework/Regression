@@ -51,14 +51,14 @@ class RegressionSceneList:
                     if ("REGRESSION_DIR" in os.environ):
                         self.ref_dir_path = values[0].replace("$REGRESSION_DIR", os.environ["REGRESSION_DIR"])
                     else:
-                        print(f"Error while processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
+                        print(f"{TermColor.RED}[Error]{TermColor.RESET} While processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
                         return
                 else: # direct absolute or relative path
                     self.ref_dir_path = os.path.join(self.file_dir, values[0])
                     self.ref_dir_path = os.path.abspath(self.ref_dir_path)
 
                 if not os.path.isdir(self.ref_dir_path):
-                    print(f'Error: Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
+                    print(f'{TermColor.RED}[Error]{TermColor.RESET} Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
                     return
 
                 if self.verbose:
@@ -122,7 +122,7 @@ class RegressionSceneList:
             self.scenes_data_sets[id_scene].load_scene()
         except Exception as e:
             self.nbr_errors = self.nbr_errors + 1
-            print(f'Error while trying to load: {str(e)}')
+            print(f'{TermColor.RED}[Error]{TermColor.RESET} While trying to load: {str(e)}')
         else:
             result = self.scenes_data_sets[id_scene].compare_references()
             if not result:

@@ -142,7 +142,7 @@ class RegressionSceneData:
         # recursively check children
         for child in node.children:
             self.parse_node(child, level + 1)
-            
+
 
     def add_compare_state(self):
         counter = 0
@@ -169,7 +169,7 @@ class RegressionSceneData:
     def load_scene(self):
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
-            print(f'Error while trying to load {self.file_scene_path}')
+            print(f'{TermColor.RED}[Error]{TermColor.RESET} While trying to load {self.file_scene_path}')
             raise RuntimeError
         else:
             Sofa.Simulation.initRoot(self.root_node)
@@ -245,7 +245,7 @@ class RegressionSceneData:
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
         except FileNotFoundError as e:
-            print(f'Error while reading references: {str(e)}')
+            print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading references: {str(e)}")
             return False
 
                     
@@ -260,7 +260,12 @@ class RegressionSceneData:
                     meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
                     data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
                     if (meca_dofs.size != data_ref.size):
-                        print(f'Error while reading reference for file {self.file_scene_path} at mechanicalObject id: {str(meca_id)}. Reference size: {data_ref.size} vs current size: {meca_dofs.size}')
+                        print(
+                            f"{TermColor.RED}[Error]{TermColor.RESET} "
+                            f"Shape mismatch for file {self.file_scene_path}, "
+                            f"MechanicalObject {meca_id}: "
+                            f"reference {data_ref.shape} vs current {meca_dofs.shape}"
+                        )
                         return False
                     
                     data_diff = data_ref - meca_dofs
