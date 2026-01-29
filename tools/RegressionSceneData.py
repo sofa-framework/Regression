@@ -98,15 +98,16 @@ class RegressionSceneData:
 
 
     def parse_node(self, node, level = 0):
-        for child in node.children:
-            mstate = child.getMechanicalState()
-            if mstate and is_simulated(child):
-                
-                if self.meca_in_mapping is True or not is_mapped(child):
-                    self.meca_objs.append(mstate)
+        # first check current node
+        mstate = node.getMechanicalState()
+        if mstate and is_simulated(node):
+            if self.meca_in_mapping is True or not is_mapped(node):
+                self.meca_objs.append(mstate)
 
+        # recursively check children
+        for child in node.children:
             self.parse_node(child, level + 1)
-    
+            
 
     def add_compare_state(self):
         counter = 0
