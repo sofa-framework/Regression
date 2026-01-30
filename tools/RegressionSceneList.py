@@ -72,13 +72,12 @@ class RegressionSceneList:
             full_file_path = os.path.join(self.file_dir, values[0])
             full_ref_file_path = os.path.join(self.ref_dir_path, values[0])
 
-            if len(values) == 5:
-                scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
-                                                                     values[1], values[2], values[3], values[4],
-                                                                     self.disable_progress_bar, self.verbose)
+            scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
+                                                                 values[1], values[2], values[3], values[4],
+                                                                 self.disable_progress_bar, self.verbose)
 
-                #scene_data.printInfo()
-                self.scenes_data_sets.append(scene_data)
+            #scene_data.printInfo()
+            self.scenes_data_sets.append(scene_data)
 
 
     def write_references(self, id_scene, print_log = False):
