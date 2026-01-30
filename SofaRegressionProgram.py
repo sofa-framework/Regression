@@ -16,19 +16,28 @@ import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
 
+regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, disable_progress_bar = False, verbose = False):
+    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False):
+        """Initialize the RegressionProgram
+
+        Args:
+            input_folder (str): Path to the folder containing regression test files.
+            filter (str): Regex pattern to filter scene files (e.g., '^demo.*.scn$'). If None, no filter is applied. Defaults to None.
+            disable_progress_bar (bool, optional): If True, disable progress bars. Defaults to False.
+            verbose (bool, optional): If True, enable verbose output. Defaults to False.
+        """
         self.scene_sets = []  # List <RegressionSceneList>
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
-                if file.endswith(".regression-tests"):
+                if file.endswith(regression_file_extension):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, self.disable_progress_bar, verbose)
+                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
@@ -87,20 +96,27 @@ class RegressionProgram:
 
 
 
-def parse_args():
+def make_parser():
     """
     Parse input arguments
     """
     parser = argparse.ArgumentParser(
-        description='Regression arguments')
+        description='Regression arguments',
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--input', 
-                        dest='input', 
-                        help='help input', 
+                        dest='input',
+                        help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
+                             f' processed and compared against a reference for regression detection.',
                         type=str)
     
     parser.add_argument('--output', 
                         dest='output', 
                         help="Directory where to export data preprocessed",
+                        type=str)
+
+    parser.add_argument('--filter',
+                        dest='filter',
+                        help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
                         type=str)
     
     parser.add_argument('--replay', 
@@ -126,20 +142,26 @@ def parse_args():
         help='If set, will display more information',
         action='store_true'
     )
-    
-    cmdline_args = parser.parse_args()
 
-    return cmdline_args
+    parser.epilog = '''
+Examples:
+    python SofaRegressionProgram.py --input ./scenes
+    python SofaRegressionProgram.py --input ./scenes --filter \"$demo.*.scn\"
+        '''
 
-        
+    return parser
+
 
 if __name__ == '__main__':
     # 1- Parse arguments to get folder path
-    args = parse_args()
+    parser = make_parser()
+    args = parser.parse_args()
+
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.progress_bar_is_disabled, args.verbose)
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose)
     else:
+        parser.print_help()
         exit("Error: Argument is required ! Quitting.")
 
     nbr_scenes = 0
