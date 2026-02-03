@@ -59,10 +59,7 @@ class NumpyArrayEncoder(JSONEncoder):
 def is_mapped(node):
     mapping = node.getMechanicalMapping()
 
-    if mapping is None:
-        return False
-    else:
-        return True
+    return mapping != None
     # no mapping in this node context
 
 
