@@ -6,9 +6,6 @@ import gzip
 import pathlib
 
 import Sofa
-import Sofa.Gui
-
-debug_info = False
 
 def is_simulated(node):
     if node.hasODESolver():
@@ -21,6 +18,35 @@ def is_simulated(node):
             return True
         
     return False
+
+
+class ReplayState(Sofa.Core.Controller):
+    def __init__(self, node, slave_mo, state_filename, **kwargs):
+        super().__init__(**kwargs)
+        self.node = node
+        self.slave_mo = slave_mo
+        self.keyframes = []
+        self.frame_step = 0
+        self.t_sim = 0.0
+
+        with gzip.open(state_filename, 'r') as zipfile:
+            self.ref_data = json.loads(zipfile.read().decode('utf-8'))
+            for key in self.ref_data:
+                self.keyframes.append(float(key))
+        
+        if (self.keyframes[0] == 0.0): # frame 0.0
+            tmp_position = np.asarray(self.ref_data[str(self.keyframes[0])])
+            self.slave_mo.position = tmp_position.tolist()
+            self.frame_step = 1
+           
+    def onAnimateEndEvent(self, event):
+       dt = float(self.node.getRootContext().dt.value)
+       self.t_sim += dt
+
+       if abs(self.t_sim - self.keyframes[self.frame_step]) < 0.000001:
+           tmp_position = np.asarray(self.ref_data[str(self.keyframes[self.frame_step])])
+           self.slave_mo.position = tmp_position.tolist()
+           self.frame_step += 1
 
 
 class NumpyArrayEncoder(JSONEncoder):
@@ -43,7 +69,7 @@ def is_mapped(node):
 
 class RegressionSceneData:
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
-                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False):
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = False):
         """
         /// Path to the file scene to test
         std::string m_fileScenePath;
@@ -74,6 +100,7 @@ class RegressionSceneData:
         self.regression_failed = False
         self.root_node = None
         self.disable_progress_bar = disable_progress_bar
+        self.verbose = verbose
 
     def print_info(self):
         print("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
@@ -114,9 +141,13 @@ class RegressionSceneData:
     def add_compare_state(self):
         counter = 0
         for meca_obj in self.meca_objs:
-            _filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
+            # Use this filename format to be compatible with previous version
+            #_filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
+            _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + meca_obj.name.value + ".json.gz"
             
-            meca_obj.getContext().addObject('CompareState', filename=_filename)
+            compareNode = meca_obj.getContext().addChild("CompareStateNode_"+str(counter))
+            cloudPoint = compareNode.addObject('VisualPointCloud', pointSize=10, drawMode="Point", color="green")
+            compareNode.addObject(ReplayState(node=compareNode, slave_mo=cloudPoint, state_filename=_filename))
             counter = counter+1
 
 
@@ -135,7 +166,7 @@ class RegressionSceneData:
             print(f'Error while trying to load {self.file_scene_path}')
             raise RuntimeError
         else:
-            Sofa.Simulation.init(self.root_node)
+            Sofa.Simulation.initRoot(self.root_node)
 
             # prepare ref files per mecaObjs:
             self.parse_node(self.root_node, 0)
@@ -232,7 +263,7 @@ class RegressionSceneData:
                     full_dist = np.linalg.norm(data_diff)
                     error_by_dof = full_dist / float(data_diff.size)
                     
-                    if debug_info:
+                    if self.verbose:
                         print (str(step) + "| " + self.meca_objs[meca_id].name.value + " | full_dist: " + str(full_dist) + " | error_by_dof: " + str(error_by_dof) + " | nbrDofs: " + str(data_ref.size))
 
                     self.total_error[meca_id] = self.total_error[meca_id] + full_dist
@@ -258,10 +289,14 @@ class RegressionSceneData:
         return True
     
 
-    def replayReferences(self):
-        Sofa.Gui.GUIManager.Init("myscene", "qglviewer")
+    def replay_references(self):
+        
+        # Import the GUI package
+        import SofaImGui
+        import Sofa.Gui
+        Sofa.Gui.GUIManager.Init("myscene", "imgui")
         Sofa.Gui.GUIManager.createGUI(self.root_node, __file__)
-        Sofa.Gui.GUIManager.SetDimension(1080, 1080)
+        Sofa.Gui.GUIManager.SetDimension(1920, 1080)
         Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
 
