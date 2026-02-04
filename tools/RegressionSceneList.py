@@ -51,7 +51,7 @@ class RegressionSceneList:
                     else:
                         print(f"Error while processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
                         return
-                else: # direct abosulte or relative path
+                else: # direct absolute or relative path
                     self.ref_dir_path = os.path.join(self.file_dir, values[0])
                     self.ref_dir_path = os.path.abspath(self.ref_dir_path)
 
