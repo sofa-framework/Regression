@@ -47,8 +47,15 @@ class RegressionSceneList:
                 continue
 
             if count == 0:
-                self.ref_dir_path = os.path.join(self.file_dir, values[0])
-                self.ref_dir_path = os.path.abspath(self.ref_dir_path)
+                if ("$REGRESSION_DIR" in values[0]): # using environment variable
+                    if ("REGRESSION_DIR" in os.environ):
+                        self.ref_dir_path = values[0].replace("$REGRESSION_DIR", os.environ["REGRESSION_DIR"])
+                    else:
+                        print(f"Error while processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
+                        return
+                else: # direct absolute or relative path
+                    self.ref_dir_path = os.path.join(self.file_dir, values[0])
+                    self.ref_dir_path = os.path.abspath(self.ref_dir_path)
 
                 if not os.path.isdir(self.ref_dir_path):
                     print(f'Error: Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
