@@ -166,82 +166,62 @@ class RegressionSceneData:
                 counter = counter+1
         
 
-    def write_CSV_references(self):
+    def write_references(self, format = "JSON"):
         pbar_simu = tqdm(total=self.steps, disable=self.disable_progress_bar)
         pbar_simu.set_description("Simulate: " + self.file_scene_path)
 
-        # Prepare per-mechanical-object CSV rows
-        nbr_meca = len(self.meca_objs)
-        csv_rows = [[] for _ in range(nbr_meca)]
-
+        # compute stepping parameters for the simulation
         counter_step = 0
         modulo_step = self.steps / self.dump_number_step
         dt = self.root_node.dt.value
+        
+        # prepae per-mechanical-object data
+        nbr_meca = len(self.meca_objs)
+        if format == "CSV":
+            csv_rows = [[] for _ in range(nbr_meca)]
+        elif format == "JSON":
+            numpy_data = [] # List<map>
+            for meca_id in range(0, nbr_meca):
+                meca_dofs = {}
+                numpy_data.append(meca_dofs)
+        else:
+            print(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {format}")
 
         for step in range(0, self.steps + 1):
             if step == 0 or counter_step >= modulo_step or step == self.steps:
                 t = dt * step
-
                 for meca_id in range(nbr_meca):
                     positions = np.asarray(self.meca_objs[meca_id].position.value)
 
-                    row = [t]
-                    row.extend(positions.reshape(-1).tolist())  # flatten vec3d
-
-                    csv_rows[meca_id].append(row)
-
+                    if format == "CSV":
+                        row = [t]
+                        row.extend(positions.reshape(-1).tolist())  # flatten vec3d
+                        csv_rows[meca_id].append(row)
+                    elif format == "JSON":
+                        numpy_data[meca_id][t] = np.copy(positions)
+                
                 counter_step = 0
-
+            
             Sofa.Simulation.animate(self.root_node, dt)
             counter_step += 1
             pbar_simu.update(1)
 
         pbar_simu.close()
 
-        # Write CSV files (gzipped, like your JSON)
+        # write reference files
         for meca_id in range(nbr_meca):
             output_file = pathlib.Path(self.filenames[meca_id])
             output_file.parent.mkdir(exist_ok=True, parents=True)
 
-            reference_io.write_CSV_reference_file(self.filenames[meca_id], self.meca_objs[meca_id])            
+            if format == "CSV":
+                dof_per_point = self.meca_objs[meca_id].position.value.shape[1]
+                n_points = self.meca_objs[meca_id].position.value.shape[0]
+                reference_io.write_CSV_reference_file(self.filenames[meca_id], dof_per_point, n_points, csv_rows[meca_id])               
+            elif format == "JSON":
+                reference_io.write_JSON_reference_file(self.filenames[meca_id], numpy_data[meca_id])
 
-        Sofa.Simulation.unload(self.root_node)
-
-    def write_JSON_references(self):
-        pbar_simu = tqdm(total=self.steps, disable=self.disable_progress_bar)
-        pbar_simu.set_description("Simulate: " + self.file_scene_path)
-        
-        nbr_meca = len(self.meca_objs)
-        numpy_data = [] # List<map>
-        for meca_id in range(0, nbr_meca):
-            meca_dofs = {}
-            numpy_data.append(meca_dofs)
-
-        
-        counter_step = 0
-        modulo_step = self.steps / self.dump_number_step
-        
-        for step in range(0, self.steps + 1):
-            # export rest position, final position + modulo steps:
-            if step == 0 or counter_step >= modulo_step or step == self.steps:
-                for meca_id in range(0, nbr_meca):
-                    numpy_data[meca_id][self.root_node.dt.value * step] = np.copy(self.meca_objs[meca_id].position.value)
-                counter_step = 0
-            
-            Sofa.Simulation.animate(self.root_node, self.root_node.dt.value)
-            counter_step = counter_step + 1
-                        
-            pbar_simu.update(1)
-        pbar_simu.close()
-
-        for meca_id in range(0, nbr_meca):
-            # make sure the parent directory of the references exists
-            output_file = pathlib.Path(self.filenames[meca_id])
-            output_file.parent.mkdir(exist_ok=True, parents=True)
-            
-            reference_io.write_JSON_reference_file(self.filenames[meca_id], numpy_data[meca_id])
-
-        Sofa.Simulation.unload(self.root_node)
+    Sofa.Simulation.unload(self.root_node)
 
 
     def compare_csv_references(self):

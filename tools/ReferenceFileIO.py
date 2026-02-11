@@ -42,15 +42,11 @@ def read_CSV_reference_file(file_path):
     return meta, data_rows
 
 
-def write_CSV_reference_file(file_path, meca_obj):
+def write_CSV_reference_file(file_path, dof_per_point, num_points, csv_rows):
     with gzip.open(file_path, "wt", newline="") as f:
         writer = csv.writer(f)
-
-        dof_per_point = meca_obj.position.value.shape[1]
-        n_points = meca_obj.position.value.shape[0]
-
         f.write(f"# dof_per_point={dof_per_point}\n")
-        f.write(f"# num_points={n_points}\n")
+        f.write(f"# num_points={num_points}\n")
 
         if dof_per_point == 2:
             f.write("# layout=time,X0,Y1,...,Xn,Yn\n")
@@ -61,7 +57,7 @@ def write_CSV_reference_file(file_path, meca_obj):
         else:
             f.write("# layout=unknown\n")
 
-        writer.writerows(csv_rows[meca_id])
+        writer.writerows(csv_rows)
 
 
 def write_JSON_reference_file(file_path, numpy_data):
