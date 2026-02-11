@@ -36,10 +36,11 @@ class ReplayState(Sofa.Core.Controller):
         self.frame_step = 0
         self.t_sim = 0.0
 
-        with gzip.open(state_filename, 'r') as zipfile:
-            self.ref_data = json.loads(zipfile.read().decode('utf-8'))
-            for key in self.ref_data:
-                self.keyframes.append(float(key))
+        try:
+            self.ref_data, self.keyframes = reference_io.read_JSON_reference_file(state_filename)
+        except Exception as e:
+            print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading reference for replay: {str(e)}")
+            raise RuntimeError(f"Failed to read reference for replay: {str(e)}")
         
         if (self.keyframes[0] == 0.0): # frame 0.0
             tmp_position = np.asarray(self.ref_data[str(self.keyframes[0])])
