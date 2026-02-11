@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy as np
 import pathlib
 
+import gzip
 import tools.ReferenceFileIO as reference_io
 import Sofa
 
