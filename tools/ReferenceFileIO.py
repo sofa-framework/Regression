@@ -68,7 +68,7 @@ def write_JSON_reference_file(file_path, numpy_data):
         write_file.write(json.dumps(numpy_data, cls=NumpyArrayEncoder).encode('utf-8'))
 
 def read_JSON_reference_file(file_path):
-    with gzip.open(self.filenames[meca_id], 'r') as zipfile:
+    with gzip.open(file_path, 'r') as zipfile:
         decoded_array = json.loads(zipfile.read().decode('utf-8'))
 
         keyframes = []
