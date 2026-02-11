@@ -294,14 +294,6 @@ class RegressionSceneData:
 
 
     def compare_references(self, format = "JSON"):
-        if format == "CSV":
-            return self.compare_csv_references()
-        elif format == "JSON":
-            return self.compare_json_references()
-        else:
-            print(f"Unsupported format: {format}")
-            raise ValueError(f"Unsupported format: {format}")
-
         pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
         pbar_simu.set_description("compare_references: " + self.file_scene_path)
 
@@ -313,14 +305,15 @@ class RegressionSceneData:
             ref_values = []         # List[List[np.ndarray]]
         elif format == "JSON":
             numpy_data = [] # List<map>
-            
+        else:
+            print(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {format}")
 
         # Outputs init
         self.total_error = []
         self.error_by_dof = []
         self.nbr_tested_frame = 0
         self.regression_failed = False
-
 
         # --------------------------------------------------
         # Load reference files
