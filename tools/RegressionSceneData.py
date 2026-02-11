@@ -55,6 +55,14 @@ class NumpyArrayEncoder(JSONEncoder):
             return obj.tolist()
         return JSONEncoder.default(self, obj)
 
+    
+def is_mapped(node):
+    mapping = node.getMechanicalMapping()
+
+    return mapping != None
+    # no mapping in this node context
+
+
 
 class RegressionSceneData:
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
@@ -77,7 +85,7 @@ class RegressionSceneData:
         self.file_ref_path = file_ref_path
         self.steps = int(steps)
         self.epsilon = float(epsilon)
-        self.meca_in_mapping = meca_in_mapping
+        self.meca_in_mapping = bool(meca_in_mapping)
         self.dump_number_step = int(dump_number_step)
         self.meca_objs = []
         self.filenames = []
@@ -114,14 +122,18 @@ class RegressionSceneData:
 
 
     def parse_node(self, node, level = 0):
+        # first check current node
+        mstate = node.getMechanicalState()
+        if mstate and is_simulated(node):
+            if self.meca_in_mapping is True or is_mapped(node) is False:
+                self.meca_objs.append(mstate)
+                if self.verbose:
+                    print("  " * level + f"- Adding MechanicalObject: {mstate.name.value} from Node: {node.name.value}")
+
+        # recursively check children
         for child in node.children:
-            mstate = child.getMechanicalState()
-            if mstate:
-                if is_simulated(child):
-                    self.meca_objs.append(mstate)
-            
             self.parse_node(child, level + 1)
-    
+            
 
     def add_compare_state(self):
         counter = 0
