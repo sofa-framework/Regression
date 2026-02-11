@@ -224,62 +224,86 @@ class RegressionSceneData:
     Sofa.Simulation.unload(self.root_node)
 
 
-    def compare_csv_references(self):
+    def compare_references(self, format = "JSON"):
+        if format == "CSV":
+            return self.compare_csv_references()
+        elif format == "JSON":
+            return self.compare_json_references()
+        else:
+            print(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {format}")
+
         pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
         pbar_simu.set_description("compare_references: " + self.file_scene_path)
 
         nbr_meca = len(self.meca_objs)
-
+        
         # Reference data
-        ref_times = []          # shared timeline
-        ref_values = []         # List[List[np.ndarray]]
+        keyframes = []  # shared timeline
+        if format == "CSV":
+            ref_values = []         # List[List[np.ndarray]]
+        elif format == "JSON":
+            numpy_data = [] # List<map>
+            
 
+        # Outputs init
         self.total_error = []
         self.error_by_dof = []
         self.nbr_tested_frame = 0
         self.regression_failed = False
 
+
         # --------------------------------------------------
         # Load reference files
         # --------------------------------------------------
-        try:
-            for meca_id in range(nbr_meca):
-                meta, rows = reference_io.read_CSV_reference_file(self.filenames[meca_id])
+        for meca_id in range(nbr_meca):
+            try:
+                if format == "CSV":
+                    meta, rows = reference_io.read_CSV_reference_file(self.filenames[meca_id])
 
-                dof_per_point = int(meta["dof_per_point"])
-                n_points = int(meta["num_points"])
+                    dof_per_point = int(meta["dof_per_point"])
+                    n_points = int(meta["num_points"])
 
-                times = []
-                values = []
+                    times = []
+                    values = []
 
-                for row in rows:
-                    t = float(row[0])
-                    flat = np.asarray(row[1:], dtype=float)
+                    for row in rows:
+                        t = float(row[0])
+                        flat = np.asarray(row[1:], dtype=float)
 
-                    expected_size = n_points * dof_per_point
-                    if flat.size != expected_size:
-                        print(
-                            f"Reference size mismatch for file {self.file_scene_path}, "
-                            f"MechanicalObject {meca_id}: "
-                            f"expected {expected_size}, got {flat.size}"
-                        )
-                        return False
+                        expected_size = n_points * dof_per_point
+                        if flat.size != expected_size:
+                            print(
+                                f"Reference size mismatch for file {self.file_scene_path}, "
+                                f"MechanicalObject {meca_id}: "
+                                f"expected {expected_size}, got {flat.size}"
+                            )
+                            return False
 
-                    values.append(flat.reshape((n_points, dof_per_point)))
-                    times.append(t)
+                        values.append(flat.reshape((n_points, dof_per_point)))
+                        times.append(t)
+                    
+                    ref_values.append(values)
 
-                # Keep timeline from first MechanicalObject
-                if meca_id == 0:
-                    ref_times = times
-                else:
-                    if len(times) != len(ref_times):
-                        print(
-                            f"Reference timeline mismatch for file {self.file_scene_path}, "
-                            f"MechanicalObject {meca_id}"
-                        )
-                        return False
+                    # Keep timeline from first MechanicalObject
+                    if meca_id == 0:
+                        keyframes = times
+                    else:
+                        if len(times) != len(keyframes):
+                            print(
+                                f"Reference timeline mismatch for file {self.file_scene_path}, "
+                                f"MechanicalObject {meca_id}"
+                            )
+                            return False
 
-                ref_values.append(values)
+                elif format == "JSON":
+                    decoded_array, decoded_keyframes = reference_io.read_JSON_reference_file(self.filenames[meca_id])
+                    numpy_data.append(decoded_array)
+
+                    # Keep timeline from first MechanicalObject
+                    if meca_id == 0:
+                        keyframes = decoded_keyframes
+
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
 
@@ -294,17 +318,20 @@ class RegressionSceneData:
         # Simulation + comparison
         # --------------------------------------------------
         frame_step = 0
-        nbr_frames = len(ref_times)
+        nbr_frames = len(keyframes)
         dt = self.root_node.dt.value
-
         for step in range(0, self.steps + 1):
             simu_time = dt * step
 
             # Use tolerance for float comparison
-            if frame_step < nbr_frames and np.isclose(simu_time, ref_times[frame_step]):
+            if frame_step < nbr_frames and np.isclose(simu_time, keyframes[frame_step]):
                 for meca_id in range(nbr_meca):
                     meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
-                    data_ref = ref_values[meca_id][frame_step]
+
+                    if format == "CSV":
+                        data_ref = ref_values[meca_id][frame_step]
+                    elif format == "JSON":
+                        data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
 
                     if meca_dofs.shape != data_ref.shape:
                         print(
@@ -349,76 +376,6 @@ class RegressionSceneData:
                 self.regression_failed = True
                 return False
 
-        return True
-
-    def compare_json_references(self):
-        pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
-        pbar_simu.set_description("compare_references: " + self.file_scene_path)
-        
-        nbr_meca = len(self.meca_objs)
-        numpy_data = [] # List<map>
-        keyframes = []
-        self.total_error = []
-        self.error_by_dof = []
-
-        for meca_id in range(0, nbr_meca):
-            try:
-                decoded_array, decoded_keyframes = reference_io.read_JSON_reference_file(self.filenames[meca_id])
-                numpy_data.append(decoded_array)
-                
-                if meca_id == 0:
-                    keyframes = decoded_keyframes
-
-                self.total_error.append(0.0)
-                self.error_by_dof.append(0.0)
-            except FileNotFoundError as e:
-                print(f'Error while reading references: {str(e)}')
-                return False
-
-                    
-        frame_step = 0
-        nbr_frames = len(keyframes)
-        self.nbr_tested_frame = 0
-        for step in range(0, self.steps + 1):
-            simu_time = self.root_node.dt.value * step
-
-            if simu_time == keyframes[frame_step]:
-                for meca_id in range(0, nbr_meca):
-                    meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
-                    data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
-                    if (meca_dofs.size != data_ref.size):
-                        print(f'Error while reading reference for file {self.file_scene_path} at mechanicalObject id: {str(meca_id)}. Reference size: {data_ref.size} vs current size: {meca_dofs.size}')
-                        return False
-                    
-                    data_diff = data_ref - meca_dofs
-                    
-                    # Compute total distance between the 2 sets
-                    full_dist = np.linalg.norm(data_diff)
-                    error_by_dof = full_dist / float(data_diff.size)
-                    
-                    if self.verbose:
-                        print (str(step) + "| " + self.meca_objs[meca_id].name.value + " | full_dist: " + str(full_dist) + " | error_by_dof: " + str(error_by_dof) + " | nbrDofs: " + str(data_ref.size))
-
-                    self.total_error[meca_id] = self.total_error[meca_id] + full_dist
-                    self.error_by_dof[meca_id] = self.error_by_dof[meca_id] + error_by_dof
-
-                frame_step = frame_step + 1
-                self.nbr_tested_frame = self.nbr_tested_frame + 1
-                
-                # security exit if simulation steps exceed nbr_frames
-                if frame_step == nbr_frames:
-                    break
-            
-            Sofa.Simulation.animate(self.root_node, self.root_node.dt.value)
-            
-            pbar_simu.update(1)
-        pbar_simu.close()
-        
-        for meca_id in range(0, nbr_meca):
-            if self.total_error[meca_id] > self.epsilon:
-                self.regression_failed = True
-                return False
-        
         return True
     
 
