@@ -1,11 +1,8 @@
 from tqdm import tqdm
-import json
-from json import JSONEncoder
 import numpy as np
-import gzip
 import pathlib
-import csv
 
+import tools.ReferenceFileIO as reference_io
 import Sofa
 
 def is_simulated(node):
@@ -49,12 +46,6 @@ class ReplayState(Sofa.Core.Controller):
            self.slave_mo.position = tmp_position.tolist()
            self.frame_step += 1
 
-
-class NumpyArrayEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return JSONEncoder.default(self, obj)
 
     
 def is_mapped(node):
@@ -193,7 +184,6 @@ class RegressionSceneData:
 
                 for meca_id in range(nbr_meca):
                     positions = np.asarray(self.meca_objs[meca_id].position.value)
-                    # positions shape: (N, 3)
 
                     row = [t]
                     row.extend(positions.reshape(-1).tolist())  # flatten vec3d
@@ -213,25 +203,7 @@ class RegressionSceneData:
             output_file = pathlib.Path(self.filenames[meca_id])
             output_file.parent.mkdir(exist_ok=True, parents=True)
 
-            with gzip.open(self.filenames[meca_id], "wt", newline="") as f:
-                writer = csv.writer(f)
-
-                dof_per_point = self.meca_objs[meca_id].position.value.shape[1]
-                n_points = self.meca_objs[meca_id].position.value.shape[0]
-
-                f.write(f"# dof_per_point={dof_per_point}\n")
-                f.write(f"# num_points={n_points}\n")
-
-                if dof_per_point == 2:
-                    f.write("# layout=time,X0,Y1,...,Xn,Yn\n")
-                elif dof_per_point == 3:
-                    f.write("# layout=time,X0,Y1,Z1,...,Xn,Yn,Zn\n")
-                elif dof_per_point == 7:
-                    f.write("# layout=time,X0,Y1,Z1,Qx1,Qy1,Qz1,Qw1,...,Xn,Yn,Zn,QxN,QyN,QzN1,QwN\n")
-                else:
-                    f.write("# layout=unknown\n")
-
-                writer.writerows(csv_rows[meca_id])
+            reference_io.write_CSV_reference_file(self.filenames[meca_id], self.meca_objs[meca_id])            
 
         Sofa.Simulation.unload(self.root_node)
 
@@ -266,9 +238,8 @@ class RegressionSceneData:
             # make sure the parent directory of the references exists
             output_file = pathlib.Path(self.filenames[meca_id])
             output_file.parent.mkdir(exist_ok=True, parents=True)
-
-            with gzip.open(self.filenames[meca_id], 'wb') as write_file:
-                write_file.write(json.dumps(numpy_data[meca_id], cls=NumpyArrayEncoder).encode('utf-8'))
+            
+            reference_io.write_JSON_reference_file(self.filenames[meca_id], numpy_data[meca_id])
 
         Sofa.Simulation.unload(self.root_node)
 
@@ -289,41 +260,11 @@ class RegressionSceneData:
         self.regression_failed = False
 
         # --------------------------------------------------
-        # Helper: read CSV + metadata
-        # --------------------------------------------------
-        def _read_csv_with_metadata(filename):
-            meta = {}
-            data_rows = []
-
-            with gzip.open(filename, "rt") as f:
-                # Read metadata
-                while True:
-                    pos = f.tell()
-                    line = f.readline()
-                    if not line:
-                        break
-
-                    if line.startswith("#"):
-                        if "=" in line:
-                            k, v = line[1:].strip().split("=", 1)
-                            meta[k.strip()] = v.strip()
-                    else:
-                        f.seek(pos)
-                        break
-
-                reader = csv.reader(f)
-                for row in reader:
-                    if row:
-                        data_rows.append(row)
-
-            return meta, data_rows
-
-        # --------------------------------------------------
         # Load reference files
         # --------------------------------------------------
         try:
             for meca_id in range(nbr_meca):
-                meta, rows = _read_csv_with_metadata(self.filenames[meca_id])
+                meta, rows = reference_io.read_CSV_reference_file(self.filenames[meca_id])
 
                 dof_per_point = int(meta["dof_per_point"])
                 n_points = int(meta["num_points"])
@@ -395,7 +336,7 @@ class RegressionSceneData:
 
                     data_diff = data_ref - meca_dofs
 
-                    # Compute errors
+                    # Compute total distance between the 2 sets
                     full_dist = np.linalg.norm(data_diff)
                     error_by_dof = full_dist / float(data_diff.size)
 
@@ -413,18 +354,16 @@ class RegressionSceneData:
                 frame_step += 1
                 self.nbr_tested_frame += 1
 
-                # Safety exit
+                # security exit if simulation steps exceed nbr_frames
                 if frame_step == nbr_frames:
                     break
 
             Sofa.Simulation.animate(self.root_node, dt)
-            pbar_simu.update(1)
 
+            pbar_simu.update(1)
         pbar_simu.close()
 
-        # --------------------------------------------------
-        # Final regression verdict
-        # --------------------------------------------------
+        # Final regression returns value
         for meca_id in range(nbr_meca):
             if self.total_error[meca_id] > self.epsilon:
                 self.regression_failed = True
@@ -442,21 +381,19 @@ class RegressionSceneData:
         self.total_error = []
         self.error_by_dof = []
 
-        try:
-            for meca_id in range(0, nbr_meca):
-                with gzip.open(self.filenames[meca_id], 'r') as zipfile:
-                    decoded_array = json.loads(zipfile.read().decode('utf-8'))
-                    numpy_data.append(decoded_array)
-
-                    if meca_id == 0:
-                        for key in decoded_array:
-                            keyframes.append(float(key))
+        for meca_id in range(0, nbr_meca):
+            try:
+                decoded_array, decoded_keyframes = reference_io.read_JSON_reference_file(self.filenames[meca_id])
+                numpy_data.append(decoded_array)
+                
+                if meca_id == 0:
+                    keyframes = decoded_keyframes
 
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
-        except FileNotFoundError as e:
-            print(f'Error while reading references: {str(e)}')
-            return False
+            except FileNotFoundError as e:
+                print(f'Error while reading references: {str(e)}')
+                return False
 
                     
         frame_step = 0
