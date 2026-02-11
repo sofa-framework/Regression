@@ -48,13 +48,16 @@ class ReplayState(Sofa.Core.Controller):
             self.frame_step = 1
            
     def onAnimateEndEvent(self, event):
-       dt = float(self.node.getRootContext().dt.value)
-       self.t_sim += dt
+        dt = float(self.node.getRootContext().dt.value)
+        self.t_sim += dt
 
-       if abs(self.t_sim - self.keyframes[self.frame_step]) < 0.000001:
-           tmp_position = np.asarray(self.ref_data[str(self.keyframes[self.frame_step])])
-           self.slave_mo.position = tmp_position.tolist()
-           self.frame_step += 1
+        if self.frame_step >= len(self.keyframes):
+            return
+
+        if abs(self.t_sim - self.keyframes[self.frame_step]) < 0.000001:
+            tmp_position = np.asarray(self.ref_data[str(self.keyframes[self.frame_step])])
+            self.slave_mo.position = tmp_position.tolist()
+            self.frame_step += 1
 
 
 # --------------------------------------------------
