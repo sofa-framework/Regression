@@ -375,12 +375,12 @@ class RegressionSceneData:
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
 
-        except FileNotFoundError as e:
-            print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading references: {str(e)}")
-            return False
-        except KeyError as e:
-            print(f"Missing metadata in reference file: {str(e)}")
-            return False
+            except FileNotFoundError as e:
+                print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading references: {str(e)}")
+                return False
+            except KeyError as e:
+                print(f"Missing metadata in reference file: {str(e)}")
+                return False
 
         # --------------------------------------------------
         # Simulation + comparison
