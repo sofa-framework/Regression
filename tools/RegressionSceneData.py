@@ -289,7 +289,7 @@ class RegressionSceneData:
             elif format == "JSON":
                 reference_io.write_JSON_reference_file(self.filenames[meca_id], numpy_data[meca_id])
 
-    Sofa.Simulation.unload(self.root_node)
+        Sofa.Simulation.unload(self.root_node)
 
 
     def compare_references(self, format = "JSON"):
