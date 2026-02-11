@@ -26,6 +26,7 @@ jobs:
           sofa_root: ${{ github.workspace }}/sofa
           sofa_version: ${{ matrix.sofa_branch }}
           sofa_scope: 'standard'
+          python_version: '3.12'
 
       - name: Checkout source code
         uses: actions/checkout@v2
