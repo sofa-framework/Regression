@@ -149,7 +149,7 @@ class RegressionSceneData:
             counter = counter+1
     
 
-    def load_scene(self):
+    def load_scene(self, format = "JSON"):
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
             print(f'Error while trying to load {self.file_scene_path}')
@@ -161,7 +161,10 @@ class RegressionSceneData:
             self.parse_node(self.root_node, 0)
             counter = 0
             for mecaObj in self.meca_objs:
-                _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".csv.gz"
+                if format == "CSV":
+                    _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".csv.gz"
+                elif format == "JSON":
+                    _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
                 self.filenames.append(_filename)
                 counter = counter+1
         
