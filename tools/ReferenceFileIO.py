@@ -2,6 +2,7 @@ import gzip
 import csv
 import json
 from json import JSONEncoder
+import numpy as np
 
 regression_version = "1.0"
 
