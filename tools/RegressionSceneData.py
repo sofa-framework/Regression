@@ -3,15 +3,8 @@ import numpy as np
 import pathlib
 
 import tools.ReferenceFileIO as reference_io
+import tools.RegressionHelper as helper
 import Sofa
-
-class TermColor:
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    CYAN = "\033[36m"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
 
 def is_simulated(node):
     if node.hasODESolver():
@@ -99,26 +92,28 @@ class RegressionSceneData:
         self.verbose = verbose
 
     def print_info(self):
-        print("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
+        helper.writeLog("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
               + " " + str(self.epsilon))
         
     def log_errors(self):
         if self.regression_failed is True:
-            print(f"### {TermColor.RED}[Failed]{TermColor.RESET} {self.file_scene_path}")
-            print("    ### Total Error per MechanicalObject: " + str(self.total_error))
-            print("    ### Error by Dofs: " + str(self.error_by_dof))
+            helper.writeError(
+                                f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame}"
+                                f"\n    ### Error by dof: {self.error_by_dof} > Threshold: {self.epsilon}"
+                                f"\n    ### Total Error: {self.total_error}"
+                            )
         elif self.nbr_tested_frame == 0:
-            print(f"### {TermColor.RED}[Failed]{TermColor.RESET} No frames were tested for {self.file_scene_path}")
+            helper.writeError(f"No frames were tested for {self.file_scene_path}")
         else:
-            print(f"### {TermColor.GREEN}[Success]{TermColor.RESET} {self.file_scene_path} | Number of key frames compared without error: {self.nbr_tested_frame}")
+            helper.writeSuccess(f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame}")
 
     def print_meca_objs(self):
-        print ("# Nbr Meca: " + str(len(self.meca_objs)))
+        helper.writeLog("# Nbr Meca: " + str(len(self.meca_objs)))
         counter = 0
         for mecaObj in self.meca_objs:
             filename = self.file_ref_path + ".reference_" + str(counter) + "_" + mecaObj.name.value + "_mstate" + ".txt.gz"
             counter = counter+1
-            print ("# File attached: " + filename)
+            helper.writeLog("# File attached: " + filename)
 
 
     def parse_node(self, node, level = 0):
@@ -128,7 +123,7 @@ class RegressionSceneData:
             if self.meca_in_mapping is True or is_mapped(node) is False:
                 self.meca_objs.append(mstate)
                 if self.verbose:
-                    print("  " * level + f"- Adding MechanicalObject: {mstate.name.value} from Node: {node.name.value}")
+                    helper.writeLog("  " * level + f"- Adding MechanicalObject: {mstate.name.value} from Node: {node.name.value}")
 
         # recursively check children
         for child in node.children:
@@ -160,7 +155,7 @@ class RegressionSceneData:
     def load_scene(self, format = "JSON"):
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
-            print(f'{TermColor.RED}[Error]{TermColor.RESET} While trying to load {self.file_scene_path}')
+            helper.writeError("While trying to load {self.file_scene_path}")
             raise RuntimeError
         else:
             Sofa.Simulation.initRoot(self.root_node)
@@ -196,7 +191,7 @@ class RegressionSceneData:
                 meca_dofs = {}
                 numpy_data.append(meca_dofs)
         else:
-            print(f"Unsupported format: {format}")
+            helper.writeError(f"Unsupported format: {format}")
             raise ValueError(f"Unsupported format: {format}")
 
         for step in range(0, self.steps + 1):
@@ -248,7 +243,7 @@ class RegressionSceneData:
         elif format == "JSON":
             numpy_data = [] # List<map>
         else:
-            print(f"Unsupported format: {format}")
+            helper.writeError(f"Unsupported format: {format}")
             raise ValueError(f"Unsupported format: {format}")
 
         # Outputs init
@@ -277,7 +272,7 @@ class RegressionSceneData:
 
                         expected_size = n_points * dof_per_point
                         if flat.size != expected_size:
-                            print(
+                            helper.writeError(
                                 f"Reference size mismatch for file {self.file_scene_path}, "
                                 f"MechanicalObject {meca_id}: "
                                 f"expected {expected_size}, got {flat.size}"
@@ -294,7 +289,7 @@ class RegressionSceneData:
                         keyframes = times
                     else:
                         if len(times) != len(keyframes):
-                            print(
+                            helper.writeError(
                                 f"Reference timeline mismatch for file {self.file_scene_path}, "
                                 f"MechanicalObject {meca_id}"
                             )
@@ -312,10 +307,10 @@ class RegressionSceneData:
                 self.error_by_dof.append(0.0)
 
             except FileNotFoundError as e:
-                print(f"{TermColor.RED}[Error]{TermColor.RESET} While reading references: {str(e)}")
+                helper.writeError(f"While reading references: {str(e)}")
                 return False
             except KeyError as e:
-                print(f"Missing metadata in reference file: {str(e)}")
+                helper.writeError(f"Missing metadata in reference file: {str(e)}")
                 return False
 
         # --------------------------------------------------
@@ -338,7 +333,7 @@ class RegressionSceneData:
                         data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
 
                     if meca_dofs.shape != data_ref.shape:
-                        print(
+                        helper.writeError(
                             f"{TermColor.RED}[Error]{TermColor.RESET} "
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
@@ -353,7 +348,7 @@ class RegressionSceneData:
                     error_by_dof = full_dist / float(data_diff.size)
 
                     if self.verbose:
-                        print(
+                        helper.writeLog(
                             f"{step} | {self.meca_objs[meca_id].name.value} | "
                             f"full_dist: {full_dist} | "
                             f"error_by_dof: {error_by_dof} | "
@@ -407,7 +402,7 @@ class RegressionSceneData:
             try:
                 times, values = reference_io.read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz", self.meca_objs[meca_id])
             except Exception as e:
-                print(
+                helper.writeError(
                     f"Error while reading legacy references for MechanicalObject '"
                     f"{self.meca_objs[meca_id].name.value}': {str(e)}"
                 )
@@ -418,7 +413,7 @@ class RegressionSceneData:
                 ref_times = times
             else:
                 if len(times) != len(ref_times):
-                    print(
+                    helper.writeError(
                         f"Reference timeline mismatch for file {self.file_scene_path}, "
                         f"MechanicalObject {meca_id}"
                     )
@@ -429,9 +424,7 @@ class RegressionSceneData:
             self.error_by_dof.append(0.0)
 
         if self.verbose:
-            print(f"ref_times len: {len(ref_times)}\n")
-            print(f"ref_values[0] len: {len(ref_values[0])}\n")    
-            print(f"ref_values[0][0] shape: {ref_values[0][0].shape}\n")
+            helper.writeLog(f"compare_legacy_references: ref_values[0][0] shape: {ref_values[0][0].shape}")
 
         # --------------------------------------------------
         # Simulation + comparison
@@ -451,7 +444,7 @@ class RegressionSceneData:
                     data_ref = ref_values[meca_id][frame_step]
 
                     if meca_dofs.shape != data_ref.shape:
-                        print(
+                        helper.writeError(
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
                             f"reference {data_ref.shape} vs current {meca_dofs.shape}"
@@ -465,8 +458,8 @@ class RegressionSceneData:
                     error_by_dof = full_dist / float(data_diff.size)
 
                     if self.verbose:
-                        print(
-                            f"{step} | {self.meca_objs[meca_id].name.value} | "
+                        helper.writeLog(
+                            f"    {step} | {self.meca_objs[meca_id].name.value} | "
                             f"full_dist: {full_dist} | "
                             f"error_by_dof: {error_by_dof} | "
                             f"nbrDofs: {data_ref.size}"
@@ -501,7 +494,7 @@ class RegressionSceneData:
 
         mean_total_error = mean_total_error / float(nbr_meca)
         mean_error_by_dof = mean_error_by_dof / float(nbr_meca)
-        print ("Mean Total Error: " + str(mean_total_error) + " | Mean Error by Dof: " + str(mean_error_by_dof) + "epsilon: " + str(self.epsilon))
+
         if mean_error_by_dof > self.epsilon:
             self.regression_failed = True
             return False

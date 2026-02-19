@@ -1,5 +1,6 @@
 import os
 import tools.RegressionSceneData as RegressionSceneData
+import tools.RegressionHelper as helper
 from tqdm import tqdm
 import re
 
@@ -55,29 +56,29 @@ class RegressionSceneList:
                     if ("REGRESSION_DIR" in os.environ):
                         self.ref_dir_path = values[0].replace("$REGRESSION_DIR", os.environ["REGRESSION_DIR"])
                     else:
-                        print(f"{TermColor.RED}[Error]{TermColor.RESET} While processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
+                        helper.writeError(f"While processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
                         return
                 else: # direct absolute or relative path
                     self.ref_dir_path = os.path.join(self.file_dir, values[0])
                     self.ref_dir_path = os.path.abspath(self.ref_dir_path)
 
                 if not os.path.isdir(self.ref_dir_path):
-                    print(f'{TermColor.RED}[Error]{TermColor.RESET} Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
+                    helper.writeError(f'Reference directory mentioned by file \'{self.file_path}\' does not exist: {self.ref_dir_path}')
                     return
 
                 if self.verbose:
-                    print(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}')
+                    helper.writeLog(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}')
                 count = count + 1
                 continue
 
 
             if len(values) != 5:
-                print ("line read has not 5 arguments: " + str(len(values)) + " -> " + line)
+                helper.writeError(f"line read has not 5 arguments: {len(values)} -> {line}")
                 continue
 
             if self.filter is not None and re.search(self.filter, values[0]) is None:
                 if self.verbose:
-                    print (f'Filtered out {self.filter}: {values[0]}')
+                    helper.writeLog(f'Filtered out {self.filter}: {values[0]}')
                 continue
 
             full_file_path = os.path.join(self.file_dir, values[0])
@@ -97,7 +98,7 @@ class RegressionSceneList:
 
     def write_references(self, id_scene, print_log = False):
         if self.verbose:
-            print(f'Writing reference files for {self.scenes_data_sets[id_scene].file_scene_path}.')
+            helper.writeLog(f'Writing reference files for {self.scenes_data_sets[id_scene].file_scene_path}.')
 
         self.scenes_data_sets[id_scene].load_scene()
         if print_log is True:
@@ -126,9 +127,8 @@ class RegressionSceneList:
             self.scenes_data_sets[id_scene].load_scene()
         except Exception as e:
             self.nbr_errors = self.nbr_errors + 1
-            print(f'{TermColor.RED}[Error]{TermColor.RESET} While trying to load: {str(e)}')
+            helper.writeError(f"While trying to load: {str(e)}")
         else:
-            print(f'legacy_mode={self.legacy_mode}')
             if self.legacy_mode:
                 result = self.scenes_data_sets[id_scene].compare_legacy_references()
             else:
