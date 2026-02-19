@@ -31,6 +31,7 @@ class RegressionProgram:
         self.scene_sets = []  # List <RegressionSceneList>
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
+        self.legacy_mode = False
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
@@ -73,6 +74,7 @@ class RegressionProgram:
 
     def compare_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
+        scene_list.legacy_mode = self.legacy_mode
         nbr_scenes = scene_list.compare_all_references()
         return nbr_scenes
 
@@ -142,6 +144,12 @@ def make_parser():
         help='If set, will display more information',
         action='store_true'
     )
+    parser.add_argument(
+        "--legacy-regression",
+        dest="legacy_mode",
+        help='If set, will read old format regression files',
+        action='store_true'
+    )
 
     parser.epilog = '''
 Examples:
@@ -165,6 +173,10 @@ if __name__ == '__main__':
         exit("Error: Argument is required ! Quitting.")
 
     nbr_scenes = 0
+
+    if args.legacy_mode:
+        print("Legacy regression mode activated.")
+        reg_prog.legacy_mode = True
 
     replay = bool(args.replay)
     if replay:

@@ -46,7 +46,6 @@ class ReplayState(Sofa.Core.Controller):
            self.slave_mo.position = tmp_position.tolist()
            self.frame_step += 1
 
-
     
 def is_mapped(node):
     mapping = node.getMechanicalMapping()
@@ -100,6 +99,8 @@ class RegressionSceneData:
             print("### Failed: " + self.file_scene_path)
             print("    ### Total Error per MechanicalObject: " + str(self.total_error))
             print("    ### Error by Dofs: " + str(self.error_by_dof))
+        elif self.nbr_tested_frame == 0:
+            print("### Failed: No frames were tested for " + self.file_scene_path)
         else:
             print ("### Success: " + self.file_scene_path + " | Number of key frames compared without error: " + str(self.nbr_tested_frame))
     
@@ -303,12 +304,12 @@ class RegressionSceneData:
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
 
-        except FileNotFoundError as e:
-            print(f"Error while reading references: {str(e)}")
-            return False
-        except KeyError as e:
-            print(f"Missing metadata in reference file: {str(e)}")
-            return False
+            except FileNotFoundError as e:
+                print(f"Error while reading references: {str(e)}")
+                return False
+            except KeyError as e:
+                print(f"Missing metadata in reference file: {str(e)}")
+                return False
 
         # --------------------------------------------------
         # Simulation + comparison
@@ -374,6 +375,131 @@ class RegressionSceneData:
 
         return True
     
+
+
+    def compare_legacy_references(self):
+        pbar_simu = tqdm(total=float(self.steps), disable=self.disable_progress_bar)
+        pbar_simu.set_description("compare_legacy_references: " + self.file_scene_path)
+
+        nbr_meca = len(self.meca_objs)
+
+        # Reference data
+        ref_times = []          # shared timeline
+        ref_values = []         # List[List[np.ndarray]]
+
+        self.total_error = []
+        self.error_by_dof = []
+        self.nbr_tested_frame = 0
+        self.regression_failed = False
+
+        # --------------------------------------------------
+        # Load legacy reference files
+        # --------------------------------------------------
+        for meca_id in range(nbr_meca):
+            try:
+                times, values = reference_io.read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz", self.meca_objs[meca_id])
+            except Exception as e:
+                print(
+                    f"Error while reading legacy references for MechanicalObject '"
+                    f"{self.meca_objs[meca_id].name.value}': {str(e)}"
+                )
+                return False
+
+            # Keep timeline from first MechanicalObject
+            if meca_id == 0:
+                ref_times = times
+            else:
+                if len(times) != len(ref_times):
+                    print(
+                        f"Reference timeline mismatch for file {self.file_scene_path}, "
+                        f"MechanicalObject {meca_id}"
+                    )
+                    return False
+
+            ref_values.append(values)
+            self.total_error.append(0.0)
+            self.error_by_dof.append(0.0)
+
+        if self.verbose:
+            print(f"ref_times len: {len(ref_times)}\n")
+            print(f"ref_values[0] len: {len(ref_values[0])}\n")    
+            print(f"ref_values[0][0] shape: {ref_values[0][0].shape}\n")
+
+        # --------------------------------------------------
+        # Simulation + comparison
+        # --------------------------------------------------
+
+        frame_step = 0
+        nbr_frames = len(ref_times)
+        dt = self.root_node.dt.value
+
+        for step in range(0, self.steps + 1):
+            simu_time = dt * step
+
+            # Use tolerance for float comparison
+            if frame_step < nbr_frames and np.isclose(simu_time, ref_times[frame_step]):
+                for meca_id in range(nbr_meca):
+                    meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
+                    data_ref = ref_values[meca_id][frame_step]
+
+                    if meca_dofs.shape != data_ref.shape:
+                        print(
+                            f"Shape mismatch for file {self.file_scene_path}, "
+                            f"MechanicalObject {meca_id}: "
+                            f"reference {data_ref.shape} vs current {meca_dofs.shape}"
+                        )
+                        return False
+
+                    data_diff = data_ref - meca_dofs
+
+                    # Compute total distance between the 2 sets
+                    full_dist = np.linalg.norm(data_diff)
+                    error_by_dof = full_dist / float(data_diff.size)
+
+                    if self.verbose:
+                        print(
+                            f"{step} | {self.meca_objs[meca_id].name.value} | "
+                            f"full_dist: {full_dist} | "
+                            f"error_by_dof: {error_by_dof} | "
+                            f"nbrDofs: {data_ref.size}"
+                        )
+
+                    self.total_error[meca_id] += full_dist
+                    self.error_by_dof[meca_id] += error_by_dof
+
+                frame_step += 1
+                self.nbr_tested_frame += 1
+
+                # security exit if simulation steps exceed nbr_frames
+                if frame_step == nbr_frames:
+                    break
+
+            Sofa.Simulation.animate(self.root_node, dt)
+            
+            pbar_simu.update(1)
+        pbar_simu.close()
+
+        # Final regression returns value
+        if nbr_meca == 0:
+            self.regression_failed = True
+            return False
+
+        # use the same way of computing errors as legacy mode
+        mean_total_error = 0.0
+        mean_error_by_dof = 0.0
+        for meca_id in range(nbr_meca):
+            mean_total_error += self.total_error[meca_id]
+            mean_error_by_dof += self.error_by_dof[meca_id]
+
+        mean_total_error = mean_total_error / float(nbr_meca)
+        mean_error_by_dof = mean_error_by_dof / float(nbr_meca)
+        print ("Mean Total Error: " + str(mean_total_error) + " | Mean Error by Dof: " + str(mean_error_by_dof) + "epsilon: " + str(self.epsilon))
+        if mean_error_by_dof > self.epsilon:
+            self.regression_failed = True
+            return False
+
+        return True
+
 
     def replay_references(self):
         
