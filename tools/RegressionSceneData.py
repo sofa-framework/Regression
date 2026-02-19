@@ -46,63 +46,6 @@ class ReplayState(Sofa.Core.Controller):
            self.slave_mo.position = tmp_position.tolist()
            self.frame_step += 1
 
-
-# --------------------------------------------------
-# Helper: read the legacy state reference format
-# --------------------------------------------------
-def read_legacy_reference(filename, mechanical_object):
-    ref_data = []
-    times = []
-    values = []
-
-    # Infer layout from MechanicalObject
-    n_points, dof_per_point = mechanical_object.position.value.shape
-    expected_size = n_points * dof_per_point
-
-
-    with gzip.open(filename, "rt") as f:
-        for line in f:
-            line = line.strip()
-
-            if not line:
-                continue
-
-            # Time marker
-            if line.startswith("T="):
-                current_time = float(line.split("=", 1)[1])
-                times.append(current_time)
-         
-            # Positions
-            elif line.startswith("X="):
-                if current_time is None:
-                    raise RuntimeError(f"X found before T in {filename}")
-
-                raw = line.split("=", 1)[1].strip().split()
-                flat = np.asarray(raw, dtype=float)
-
-                if flat.size != expected_size:
-                    raise ValueError(
-                        f"Legacy reference size mismatch in {filename}: "
-                        f"expected {expected_size}, got {flat.size}\n"
-                    )
-
-                values.append(flat.reshape((n_points, dof_per_point)))
-
-            # Velocity (ignored)
-            elif line.startswith("V="):
-                continue
-
-    if len(times) != len(values):
-        raise RuntimeError(
-            f"Legacy reference corrupted in {filename}: "
-            f"{len(times)} times vs {len(values)} X blocks"
-        )
-
-    return times, values
-
-
-
-
     
 def is_mapped(node):
     mapping = node.getMechanicalMapping()
@@ -361,12 +304,12 @@ class RegressionSceneData:
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
 
-        except FileNotFoundError as e:
-            print(f"Error while reading references: {str(e)}")
-            return False
-        except KeyError as e:
-            print(f"Missing metadata in reference file: {str(e)}")
-            return False
+            except FileNotFoundError as e:
+                print(f"Error while reading references: {str(e)}")
+                return False
+            except KeyError as e:
+                print(f"Missing metadata in reference file: {str(e)}")
+                return False
 
         # --------------------------------------------------
         # Simulation + comparison
@@ -454,12 +397,11 @@ class RegressionSceneData:
         # --------------------------------------------------
         for meca_id in range(nbr_meca):
             try:
-                times, values = read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz",
-                                                     self.meca_objs[meca_id])
+                times, values = reference_io.read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz", self.meca_objs[meca_id])
             except Exception as e:
                 print(
-                    f"Error while reading legacy references for MechanicalObject "
-                    f"{self.meca_objs[meca_id].name.value}: {str(e)}"
+                    f"Error while reading legacy references for MechanicalObject '"
+                    f"{self.meca_objs[meca_id].name.value}': {str(e)}"
                 )
                 return False
 

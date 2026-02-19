@@ -43,7 +43,9 @@ def read_CSV_reference_file(file_path):
 
     return meta, data_rows
 
-
+# --------------------------------------------------
+# Helper: write CSV + metadata
+# --------------------------------------------------
 def write_CSV_reference_file(file_path, dof_per_point, num_points, csv_rows):
     with gzip.open(file_path, "wt", newline="") as f:
         writer = csv.writer(f)
@@ -63,10 +65,16 @@ def write_CSV_reference_file(file_path, dof_per_point, num_points, csv_rows):
         writer.writerows(csv_rows)
 
 
+# --------------------------------------------------
+# Helper: write numpy array to JSON
+# --------------------------------------------------
 def write_JSON_reference_file(file_path, numpy_data):
     with gzip.open(file_path, 'wb') as write_file:
         write_file.write(json.dumps(numpy_data, cls=NumpyArrayEncoder).encode('utf-8'))
 
+# --------------------------------------------------
+# Helper: read JSON and convert to numpy array
+# --------------------------------------------------
 def read_JSON_reference_file(file_path):
     with gzip.open(file_path, 'r') as zipfile:
         decoded_array = json.loads(zipfile.read().decode('utf-8'))
@@ -76,3 +84,56 @@ def read_JSON_reference_file(file_path):
             keyframes.append(float(key))
     
         return decoded_array, keyframes
+
+# --------------------------------------------------
+# Helper: read the legacy state reference format
+# --------------------------------------------------
+def read_legacy_reference(filename, mechanical_object):
+    ref_data = []
+    times = []
+    values = []
+
+    # Infer layout from MechanicalObject
+    n_points, dof_per_point = mechanical_object.position.value.shape
+    expected_size = n_points * dof_per_point
+
+
+    with gzip.open(filename, "rt") as f:
+        for line in f:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            # Time marker
+            if line.startswith("T="):
+                current_time = float(line.split("=", 1)[1])
+                times.append(current_time)
+         
+            # Positions
+            elif line.startswith("X="):
+                if current_time is None:
+                    raise RuntimeError(f"X found before T in {filename}")
+
+                raw = line.split("=", 1)[1].strip().split()
+                flat = np.asarray(raw, dtype=float)
+
+                if flat.size != expected_size:
+                    raise ValueError(
+                        f"Legacy reference size mismatch in {filename}: "
+                        f"expected {expected_size}, got {flat.size}\n"
+                    )
+
+                values.append(flat.reshape((n_points, dof_per_point)))
+
+            # Velocity (ignored)
+            elif line.startswith("V="):
+                continue
+
+    if len(times) != len(values):
+        raise RuntimeError(
+            f"Legacy reference corrupted in {filename}: "
+            f"{len(times)} times vs {len(values)} X blocks"
+        )
+
+    return times, values
