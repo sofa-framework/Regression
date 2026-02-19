@@ -73,7 +73,7 @@ class RegressionSceneList:
 
 
             if len(values) != 5:
-                helper.writeError(f"line read has not 5 arguments: {len(values)} -> {line}")
+                helper.writeWarning(f"line read has not 5 arguments: {len(values)} -> {line}")
                 continue
 
             if self.filter is not None and re.search(self.filter, values[0]) is None:

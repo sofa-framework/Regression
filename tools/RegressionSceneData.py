@@ -334,7 +334,6 @@ class RegressionSceneData:
 
                     if meca_dofs.shape != data_ref.shape:
                         helper.writeError(
-                            f"{TermColor.RED}[Error]{TermColor.RESET} "
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
                             f"reference {data_ref.shape} vs current {meca_dofs.shape}"
