@@ -56,7 +56,7 @@ class RegressionSceneList:
                     if ("REGRESSION_DIR" in os.environ):
                         self.ref_dir_path = values[0].replace("$REGRESSION_DIR", os.environ["REGRESSION_DIR"])
                     else:
-                        helper.writeError(f"While processing $REGRESSION_DIR: Environment variable REGRESSION_DIR is not set.")
+                        helper.writeError(f"The environment variable $REGRESSION_DIR is required in {self.file_path} but not set. Please set this variable to the root directory of your regression tests to proceed.")
                         return
                 else: # direct absolute or relative path
                     self.ref_dir_path = os.path.join(self.file_dir, values[0])
@@ -81,8 +81,8 @@ class RegressionSceneList:
                     helper.writeLog(f'Filtered out {self.filter}: {values[0]}')
                 continue
 
-            full_file_path = os.path.join(self.file_dir, values[0])
-            full_ref_file_path = os.path.join(self.ref_dir_path, values[0])
+            full_file_path = os.path.normpath(os.path.join(self.file_dir, values[0]))
+            full_ref_file_path = os.path.normpath(os.path.join(self.ref_dir_path, values[0]))
 
             meca_in_mapping = False
             if values[3] == '1': # converting string to Bool always gives True
