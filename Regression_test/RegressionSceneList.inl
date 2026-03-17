@@ -219,10 +219,10 @@ void RegressionSceneList<T>::collectScenesFromList(const std::string& scenesDir,
 
 
 
-        std::string scene = listDir + "/" + sceneFromList;
+        std::string scene = FileSystem::append(listDir, sceneFromList);
         std::string sceneFromScenesDir(scene);
         sceneFromScenesDir.erase( sceneFromScenesDir.find(scenesDir+(scenesDir[scenesDir.size()-1] == '/' ? "" : "/")), scenesDir.size()+1 );
-        std::string reference = fullPathReferenceDir + "/" + sceneFromList + ".reference";
+        std::string reference = FileSystem::append(fullPathReferenceDir, sceneFromList) + ".reference";
 
 #ifdef WIN32
         // Minimize absolute scene path to avoid MAX_PATH problem
