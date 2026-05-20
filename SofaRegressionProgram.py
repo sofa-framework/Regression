@@ -146,6 +146,12 @@ def make_parser():
         action='store_true'
     )
     parser.add_argument(
+        "--quiet",
+        dest="quiet",
+        help='If set, will only print error messages and results.',
+        action='store_true'
+    )
+    parser.add_argument(
         "--legacy-regression",
         dest="legacy_mode",
         help='If set, will read old format regression files',
@@ -185,10 +191,24 @@ if __name__ == '__main__':
         reg_prog.replay_references(replayId)
         sys.exit()
 
+    old_fd = os.dup(1)
+    if args.quiet:
+        # Save and redirect
+        sys.stdout.flush()
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, 1)
+        os.close(devnull)
+
     if args.write_mode:
         nbr_scenes = reg_prog.write_all_sets_references()
     else:
         nbr_scenes = reg_prog.compare_all_sets_references()
+
+    if args.quiet:
+        # Restore
+        sys.stdout.flush()
+        os.dup2(old_fd, 1)
+        os.close(old_fd)
 
     np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
     
