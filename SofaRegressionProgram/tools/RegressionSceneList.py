@@ -1,6 +1,7 @@
 import os
 import tools.RegressionSceneData as RegressionSceneData
 import tools.RegressionHelper as helper
+import tools.RegressionWorker as RegressionWorker
 from tools import ProgressBarHandler as pbh
 
 import re
@@ -197,14 +198,18 @@ class RegressionSceneList:
 
 
     def write_references(self, id_scene, print_log = False):
+        scene = self.scenes_data_sets[id_scene]
         if self.verbose:
-            helper.writeLog(f'Writing reference files for {self.scenes_data_sets[id_scene].file_scene_path}.')
+            helper.writeLog(f'Writing reference files for {scene.file_scene_path}.')
 
-        self.scenes_data_sets[id_scene].load_scene()
-        if print_log is True:
-            self.scenes_data_sets[id_scene].print_meca_objs()
-            
-        self.scenes_data_sets[id_scene].write_references()
+        # Each scene is written in its own process to guarantee a clean SOFA
+        # state (SOFA does not fully reset global state between load/unload).
+        result = RegressionWorker.run_scene_in_subprocess(
+            scene, mode="write",
+            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
+
+        if not result.get("ok", False):
+            helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}")
 
     def write_all_references(self):
         nbr_scenes = len(self.scenes_data_sets)
@@ -222,22 +227,26 @@ class RegressionSceneList:
 
 
     def compare_references(self, id_scene):
+        scene = self.scenes_data_sets[id_scene]
         if self.verbose:
-            self.scenes_data_sets[id_scene].print_info()
+            scene.print_info()
 
-        try:
-            self.scenes_data_sets[id_scene].load_scene()
-        except Exception as e:
+        # Each scene is compared in its own process to guarantee a clean SOFA
+        # state, identical to the one used when the references were written.
+        result = RegressionWorker.run_scene_in_subprocess(
+            scene, mode="compare", legacy=self.legacy_mode,
+            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
+
+        if not result.get("ok", False):
+            # Hard failure (scene could not be loaded / worker crashed).
             self.nbr_errors = self.nbr_errors + 1
-            helper.writeError(f"While trying to load: {str(e)}")
-        else:
-            if self.legacy_mode:
-                result = self.scenes_data_sets[id_scene].compare_legacy_references()
-            else:
-                result = self.scenes_data_sets[id_scene].compare_references()
-            
-            if not result:
-                self.nbr_errors = self.nbr_errors + 1
+            helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}")
+            return
+
+        # Bring the worker's outcome back so log_errors() reports it as usual.
+        scene.apply_worker_result(result)
+        if not result.get("result", False):
+            self.nbr_errors = self.nbr_errors + 1
         
 
     def compare_all_references(self):

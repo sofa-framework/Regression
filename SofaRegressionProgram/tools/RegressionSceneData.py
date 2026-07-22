@@ -108,6 +108,16 @@ class RegressionSceneData:
         else:
             helper.writeSuccess(f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame} | run time: {self.total_run_time/1e9} seconds. ")
 
+    def apply_worker_result(self, result):
+        """Copy the fields reported by an isolated worker process back onto this
+        object so that log_errors() and error counting behave as if the scene had
+        been compared in-process."""
+        self.regression_failed = bool(result.get("regression_failed", False))
+        self.nbr_tested_frame = int(result.get("nbr_tested_frame", 0))
+        self.total_run_time = result.get("total_run_time", 0)
+        self.error_by_dof = result.get("error_by_dof", [])
+        self.total_error = result.get("total_error", [])
+
     def print_meca_objs(self):
         helper.writeLog("# Nbr Meca: " + str(len(self.meca_objs)))
         counter = 0
