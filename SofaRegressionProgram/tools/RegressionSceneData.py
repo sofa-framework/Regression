@@ -154,11 +154,15 @@ class RegressionSceneData:
     
 
     def load_scene(self, format = "JSON"):
+        if self.verbose:
+            helper.writeLog(f"Loading scene: {self.file_scene_path}")
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
             helper.writeError("While trying to load {self.file_scene_path}")
             raise RuntimeError
         else:
+            if self.verbose:
+                helper.writeLog("Initializing root node")
             Sofa.Simulation.initRoot(self.root_node)
 
             # prepare ref files per mecaObjs:
@@ -435,6 +439,12 @@ class RegressionSceneData:
         frame_step = 0
         nbr_frames = len(ref_times)
         dt = self.root_node.dt.value
+
+        if nbr_frames != self.steps:
+            helper.writeWarning(f"Number of steps saved in reference file ({nbr_frames}) does not match the number of required steps ({self.steps})")
+
+        if self.verbose:
+            helper.writeLog(f"Running {self.steps} simulation steps...")
 
         for step in range(0, self.steps + 1):
             simu_time = dt * step

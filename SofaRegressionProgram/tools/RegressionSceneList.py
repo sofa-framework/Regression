@@ -71,25 +71,45 @@ class RegressionSceneList:
                 count = count + 1
                 continue
 
-
-            if len(values) != 5:
-                helper.writeWarning(f"line read has not 5 arguments: {len(values)} -> {line}")
-                continue
-
             if self.filter is not None and re.search(self.filter, values[0]) is None:
                 if self.verbose:
                     helper.writeLog(f'Filtered out {self.filter}: {values[0]}')
                 continue
 
+            steps = 1000
+            epsilon = 0.0001
+            meca_in_mapping = False
+            dump_number_step = 1
+
+            if len(values) < 2:
+                helper.writeWarning(f"Cannot evaluate steps from line: {line}. Default value {steps} will be used instead.")
+            else:
+                steps = int(values[1])
+
+            if len(values) < 3:
+                helper.writeWarning(
+                    f"Cannot evaluate epsilon from line: {line}. Default value {epsilon} will be used instead.")
+            else:
+                epsilon = float(values[2])
+
+            if len(values) < 4:
+                helper.writeWarning(
+                    f"Cannot evaluate meca_in_mapping from line: {line}. Default value {meca_in_mapping} will be used instead.")
+            else:
+                if values[3] == '1':  # converting string to Bool always gives True
+                    meca_in_mapping = True
+
+            if len(values) < 5:
+                helper.writeWarning(
+                    f"Cannot evaluate dump_number_step from line: {line}. Default value {dump_number_step} will be used instead.")
+            else:
+                dump_number_step = int(values[4])
+
             full_file_path = os.path.normpath(os.path.join(self.file_dir, values[0]))
             full_ref_file_path = os.path.normpath(os.path.join(self.ref_dir_path, values[0]))
 
-            meca_in_mapping = False
-            if values[3] == '1': # converting string to Bool always gives True
-                meca_in_mapping = True
-
             scene_data = RegressionSceneData.RegressionSceneData(full_file_path, full_ref_file_path,
-                                                                 values[1], values[2], meca_in_mapping, values[4],
+                                                                 steps, epsilon, meca_in_mapping, dump_number_step,
                                                                  self.disable_progress_bar, self.verbose)
 
             #scene_data.printInfo()
