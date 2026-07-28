@@ -13,12 +13,12 @@ else:
 import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
-from tools import ProgressBarHandler as pbh
+import tools.RegressionWorker as RegressionWorker
 
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False):
+    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
         """Initialize the RegressionProgram
 
         Args:
@@ -26,18 +26,20 @@ class RegressionProgram:
             filter (str): Regex pattern to filter scene files (e.g., '^demo.*.scn$'). If None, no filter is applied. Defaults to None.
             disable_progress_bar (bool, optional): If True, disable progress bars. Defaults to False.
             verbose (bool, optional): If True, enable verbose output. Defaults to False.
+            nbr_jobs (int, optional): Number of scenes to write/compare at the same time. 0 means one per logical core. Defaults to 1.
         """
         self.scene_sets = []  # List <RegressionSceneList>
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
         self.legacy_mode = False
+        self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
                 if file.endswith(regression_file_extension):
                     file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose)
+                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
                     scene_list.process_file()
                     self.scene_sets.append(scene_list)
@@ -58,26 +60,32 @@ class RegressionProgram:
         for scene_list in self.scene_sets:
             scene_list.log_scenes_errors()
 
+    def run_all_sets(self, mode, description):
+        """Run every scene of every set in `mode` ("write" or "compare").
+
+        When several jobs are allowed, the scenes of all the sets are scheduled
+        in a single pool: a set holding fewer scenes than the number of jobs
+        would otherwise leave most of the workers idle.
+        """
+        tasks = []
+        for scene_list in self.scene_sets:
+            scene_list.legacy_mode = self.legacy_mode
+            tasks.extend(scene_list.build_tasks(mode))
+
+        return RegressionWorker.run_scene_tasks(
+            tasks,
+            nbr_jobs=self.nbr_jobs,
+            on_result=lambda task, result: task["scene_list"].apply_result(task, result),
+            description=description,
+            disable_progress_bar=self.disable_progress_bar)
+
     def write_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
         nbr_scenes = scene_list.write_all_references()
         return nbr_scenes
 
     def write_all_sets_references(self):
-        nbr_sets = len(self.scene_sets)
-
-        pbar_sets = pbh.ProgressBarHandler(total=nbr_sets, disable=self.disable_progress_bar)
-        pbar_sets.set_description("Write All sets")
-
-        nbr_scenes = 0
-        for i in range(0, nbr_sets):
-            nbr_scenes = nbr_scenes + self.write_sets_references(i)
-            pbar_sets.update(1)
-
-        if not self.disable_progress_bar:
-            pbar_sets.close()
-
-        return nbr_scenes
+        return self.run_all_sets("write", "Write All sets")
 
     def compare_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
@@ -86,18 +94,7 @@ class RegressionProgram:
         return nbr_scenes
 
     def compare_all_sets_references(self):
-        nbr_sets = len(self.scene_sets)
-        pbar_sets = pbh.ProgressBarHandler(total=nbr_sets, disable=self.disable_progress_bar)
-        pbar_sets.set_description("Compare All sets")
-
-        nbr_scenes = 0
-        for i in range(0, nbr_sets):
-            nbr_scenes = nbr_scenes + self.compare_sets_references(i)
-            pbar_sets.update(1)
-
-        pbar_sets.close()
-
-        return nbr_scenes
+        return self.run_all_sets("compare", "Compare All sets")
 
     def replay_references(self, id_scene, id_set=0):
         scene_list = self.scene_sets[id_set]
@@ -128,7 +125,15 @@ def make_parser():
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
                         type=str)
     
-    parser.add_argument('--replay', 
+    parser.add_argument('-j', '--jobs',
+                        dest='jobs',
+                        help="Number of scenes to process at the same time (each one still runs in its own\n"
+                             "isolated process, so the results are unchanged). 0 means one job per logical\n"
+                             "core. Default: 1 (sequential).",
+                        type=int,
+                        default=1)
+
+    parser.add_argument('--replay',
                         dest='replay', 
                         help=f"Will launch runSofa on the scene number X (input number) in the input the list of the {regression_file_extension} file given as input and display the scene references aside from the simulation",
                         type=int)
@@ -169,6 +174,8 @@ Examples:
     python SofaRegressionProgram.py --input ./scenes
     python SofaRegressionProgram.py --input ./scenes --filter \"$demo.*.scn\"
     python SofaRegressionProgram.py --input ./scenes --replay 5
+    python SofaRegressionProgram.py --input ./scenes --jobs 8
+    python SofaRegressionProgram.py --input ./scenes --write-references -j 0
         '''
 
     return parser
@@ -181,7 +188,7 @@ if __name__ == '__main__':
 
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose)
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose, args.jobs)
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
@@ -191,7 +198,11 @@ if __name__ == '__main__':
     if args.legacy_mode:
         print("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
-    
+
+    if reg_prog.nbr_jobs > 1:
+        print(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
+
+
     if args.replay is not None:
         replayId = int(args.replay)
         reg_prog.replay_references(replayId)
