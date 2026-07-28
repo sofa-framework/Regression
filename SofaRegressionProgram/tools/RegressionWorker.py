@@ -15,10 +15,16 @@ write pass and the compare pass always see identical conditions.
 
 This module has two roles:
   * Parent side: `run_scene_in_subprocess()` spawns a child for one scene and
-    marshals the result back through a temporary JSON file.
+    marshals the result back through a temporary JSON file. `run_scene_tasks()`
+    schedules a list of scenes over a pool of such children, so that several
+    scenes are simulated at the same time.
   * Child side: executed as `python RegressionWorker.py ...`, it sets up the
     SOFA environment, runs a single scene (write or compare) and writes its
     result to the file given by `--result-file`.
+
+Because every scene already runs in its own process, running several of them
+concurrently changes nothing to the results: children never share any SOFA
+state. The parent only has to schedule them and collect their outcome.
 
 Only the standard library is imported at module top-level so that importing
 this module in the parent does NOT import SOFA (the parent must never load or
@@ -31,6 +37,7 @@ import json
 import argparse
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def _safe_remove(path):
@@ -45,7 +52,8 @@ def _safe_remove(path):
 # --------------------------------------------------
 def run_scene_in_subprocess(scene_data, mode, legacy=False,
                             disable_progress_bar=False, verbose=False,
-                            format="JSON", python_exe=None):
+                            format="JSON", python_exe=None,
+                            capture_output=False):
     """Run a single scene (write or compare) in an isolated child process.
 
     Args:
@@ -57,6 +65,10 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         format (str): reference file format ("JSON" or "CSV").
         python_exe (str): interpreter to use for the child (defaults to the
             current one).
+        capture_output (bool): if True, the child output is captured and
+            returned in the "stdout"/"stderr" keys of the result instead of
+            being interleaved with the output of the other children. Used when
+            several scenes run concurrently.
 
     Returns:
         dict: the result reported by the child. Always contains an "ok" key.
@@ -89,10 +101,13 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
     if disable_progress_bar:
         cmd.append("--disable-progress-bar")
 
-    # stdout/stderr are inherited so SOFA logs and progress bars behave exactly
-    # as before (and the parent's --quiet redirection propagates to the child).
+    # When a single scene runs at a time, stdout/stderr are inherited so SOFA
+    # logs and progress bars behave exactly as before (and the parent's --quiet
+    # redirection propagates to the child). When several children run at the
+    # same time their output is captured instead, and replayed as one block by
+    # the caller, otherwise the logs of all the scenes would be interleaved.
     try:
-        completed = subprocess.run(cmd)
+        completed = subprocess.run(cmd, capture_output=capture_output, text=capture_output)
     except Exception as e:
         _safe_remove(result_path)
         return {"ok": False, "error": f"Failed to launch worker subprocess: {e}"}
@@ -106,9 +121,120 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
     _safe_remove(result_path)
 
     if result is None:
-        return {"ok": False,
-                "error": f"Worker produced no result (exit code {completed.returncode})."}
+        result = {"ok": False,
+                  "error": f"Worker produced no result (exit code {completed.returncode})."}
+
+    if capture_output:
+        result["stdout"] = completed.stdout
+        result["stderr"] = completed.stderr
     return result
+
+
+# --------------------------------------------------
+# Parent side: schedule several scenes concurrently
+# --------------------------------------------------
+def resolve_nbr_jobs(nbr_jobs):
+    """Turn the user-provided job count into a usable number of workers.
+
+    0 (or a negative value) means "one job per logical core".
+    """
+    if nbr_jobs is None:
+        return 1
+    nbr_jobs = int(nbr_jobs)
+    if nbr_jobs <= 0:
+        return os.cpu_count() or 1
+    return nbr_jobs
+
+
+def _echo_captured_output(header, result):
+    """Print in one block the output captured from a child process."""
+    out = result.get("stdout")
+    err = result.get("stderr")
+    if not (out or err):
+        return
+
+    if out:
+        sys.stdout.write(header + "\n")
+        sys.stdout.write(out if out.endswith("\n") else out + "\n")
+        sys.stdout.flush()
+    if err:
+        sys.stderr.write(header + "\n")
+        sys.stderr.write(err if err.endswith("\n") else err + "\n")
+        sys.stderr.flush()
+
+
+def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
+                    description=None, disable_progress_bar=False):
+    """Run a list of scenes, up to `nbr_jobs` of them at the same time.
+
+    Args:
+        tasks (list): task descriptors. Each one is a dict containing at least
+            "scene_data" (RegressionSceneData), "mode" ("write" or "compare"),
+            and optionally "legacy" and "verbose". Any other key is ignored
+            here and simply handed back to `on_result`, which lets the caller
+            attach whatever context it needs to identify the task.
+        nbr_jobs (int): maximum number of scenes simulated concurrently.
+        format (str): reference file format ("JSON" or "CSV").
+        on_result (callable): called as `on_result(task, result)` for every
+            finished task, always from the calling thread so that the callback
+            does not need any locking.
+        description (str): label of the progress bar.
+        disable_progress_bar (bool): disable the progress bar of this run.
+
+    Returns:
+        int: the number of tasks that were run.
+    """
+    from tools import ProgressBarHandler as pbh
+
+    nbr_jobs = max(1, resolve_nbr_jobs(nbr_jobs))
+    # Never spawn more workers than there is work to do.
+    nbr_jobs = min(nbr_jobs, len(tasks)) if tasks else 1
+
+    pbar = pbh.ProgressBarHandler(total=len(tasks), disable=disable_progress_bar)
+    if description is not None:
+        pbar.set_description(description)
+
+    def _run(task):
+        return run_scene_in_subprocess(
+            task["scene_data"],
+            mode=task["mode"],
+            legacy=task.get("legacy", False),
+            # In parallel the per-step progress bars of the children are
+            # captured along with their output: they would only produce noise.
+            disable_progress_bar=disable_progress_bar or nbr_jobs > 1,
+            verbose=task.get("verbose", False),
+            format=format,
+            capture_output=nbr_jobs > 1,
+        )
+
+    try:
+        if nbr_jobs == 1:
+            for task in tasks:
+                result = _run(task)
+                if on_result is not None:
+                    on_result(task, result)
+                pbar.update(1)
+        else:
+            with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
+                # The threads only wait on their child process: all the result
+                # handling happens here, in the calling thread.
+                futures = {executor.submit(_run, task): task for task in tasks}
+                try:
+                    for future in as_completed(futures):
+                        task = futures[future]
+                        result = future.result()
+                        _echo_captured_output(
+                            f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                        if on_result is not None:
+                            on_result(task, result)
+                        pbar.update(1)
+                except (KeyboardInterrupt, SystemExit):
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    raise
+    finally:
+        pbar.close()
+
+    return len(tasks)
 
 
 # --------------------------------------------------
