@@ -347,6 +347,9 @@ class RegressionSceneData:
                     elif format == "JSON":
                         data_ref = np.asarray(numpy_data[meca_id][str(keyframes[frame_step])])
 
+                    if meca_dofs.size == 0 and data_ref.size == 0:
+                        continue
+
                     if meca_dofs.shape != data_ref.shape:
                         helper.writeError(
                             f"Shape mismatch for file {self.file_scene_path}, "
