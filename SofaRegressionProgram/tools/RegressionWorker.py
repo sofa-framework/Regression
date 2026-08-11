@@ -149,6 +149,7 @@ def _worker_main():
         if program_root not in sys.path:
             sys.path.insert(0, program_root)
 
+        import Sofa
         import SofaRuntime  # noqa: F401  (registers the py3 scene loader)
         import tools.RegressionSceneData as RegressionSceneData
 
