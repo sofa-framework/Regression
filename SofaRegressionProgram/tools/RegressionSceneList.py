@@ -2,14 +2,13 @@ import os
 import tools.RegressionSceneData as RegressionSceneData
 import tools.RegressionHelper as helper
 import tools.RegressionWorker as RegressionWorker
-from tools import ProgressBarHandler as pbh
 
 import re
 
 ## This class is responsible for loading a file.regression-tests to gather the list of scene to test with all arguments
 ## It will provide the API to launch the tests or write refs on all scenes contained in this file
 class RegressionSceneList:
-    def __init__(self, file_path, filter, disable_progress_bar = False, verbose = False):
+    def __init__(self, file_path, filter, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
         """
         /// Path to the file.regression-tests containing the list of scene to tests with all arguments
         std::string filePath;
@@ -24,6 +23,7 @@ class RegressionSceneList:
         self.disable_progress_bar = disable_progress_bar
         self.verbose = verbose
         self.legacy_mode = False
+        self.nbr_jobs = nbr_jobs # number of scenes simulated at the same time
 
 
     def get_nbr_scenes(self):
@@ -197,45 +197,36 @@ class RegressionSceneList:
             self.scenes_data_sets.append(scene_data)
 
 
-    def write_references(self, id_scene, print_log = False):
-        scene = self.scenes_data_sets[id_scene]
-        if self.verbose:
-            helper.writeLog(f'Writing reference files for {scene.file_scene_path}.')
+    def build_task(self, id_scene, mode):
+        """Return the task descriptor handed over to RegressionWorker for one scene.
 
-        # Each scene is written in its own process to guarantee a clean SOFA
-        # state (SOFA does not fully reset global state between load/unload).
-        result = RegressionWorker.run_scene_in_subprocess(
-            scene, mode="write",
-            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
-
-        if not result.get("ok", False):
-            helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}")
-
-    def write_all_references(self):
-        nbr_scenes = len(self.scenes_data_sets)
-
-        pbar_scenes = pbh.ProgressBarHandler(total=nbr_scenes, disable=self.disable_progress_bar)
-        pbar_scenes.set_description("Write all scenes from: " + self.file_path)
-        
-        for i in range(0, nbr_scenes):
-            self.write_references(i)
-            pbar_scenes.update(1)
-
-        pbar_scenes.close()
-        
-        return nbr_scenes
+        Each scene is run in its own process to guarantee a clean SOFA state
+        (SOFA does not fully reset its global state between load/unload), which
+        also makes it safe to run several of them at the same time.
+        """
+        return {
+            "scene_list": self,
+            "id_scene": id_scene,
+            "scene_data": self.scenes_data_sets[id_scene],
+            "mode": mode,
+            "legacy": self.legacy_mode,
+            "verbose": self.verbose,
+        }
 
 
-    def compare_references(self, id_scene):
-        scene = self.scenes_data_sets[id_scene]
-        if self.verbose:
-            scene.print_info()
+    def build_tasks(self, mode):
+        """Return the task descriptors of every scene of this list."""
+        return [self.build_task(i, mode) for i in range(len(self.scenes_data_sets))]
 
-        # Each scene is compared in its own process to guarantee a clean SOFA
-        # state, identical to the one used when the references were written.
-        result = RegressionWorker.run_scene_in_subprocess(
-            scene, mode="compare", legacy=self.legacy_mode,
-            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
+
+    def apply_result(self, task, result):
+        """Collect the outcome reported by a worker process for one scene."""
+        scene = self.scenes_data_sets[task["id_scene"]]
+
+        if task["mode"] == "write":
+            if not result.get("ok", False):
+                helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}")
+            return
 
         if not result.get("ok", False):
             # Hard failure (scene could not be loaded / worker crashed).
@@ -247,19 +238,48 @@ class RegressionSceneList:
         scene.apply_worker_result(result)
         if not result.get("result", False):
             self.nbr_errors = self.nbr_errors + 1
-        
+
+
+    def _run_tasks(self, mode, description):
+        tasks = self.build_tasks(mode)
+        return RegressionWorker.run_scene_tasks(
+            tasks,
+            nbr_jobs=self.nbr_jobs,
+            on_result=self.apply_result,
+            description=description,
+            disable_progress_bar=self.disable_progress_bar)
+
+
+    def write_references(self, id_scene, print_log = False):
+        scene = self.scenes_data_sets[id_scene]
+        if self.verbose:
+            helper.writeLog(f'Writing reference files for {scene.file_scene_path}.')
+
+        task = self.build_task(id_scene, "write")
+        result = RegressionWorker.run_scene_in_subprocess(
+            scene, mode="write",
+            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
+        self.apply_result(task, result)
+
+
+    def write_all_references(self):
+        return self._run_tasks("write", "Write all scenes from: " + self.file_path)
+
+
+    def compare_references(self, id_scene):
+        scene = self.scenes_data_sets[id_scene]
+        if self.verbose:
+            scene.print_info()
+
+        task = self.build_task(id_scene, "compare")
+        result = RegressionWorker.run_scene_in_subprocess(
+            scene, mode="compare", legacy=self.legacy_mode,
+            disable_progress_bar=self.disable_progress_bar, verbose=self.verbose)
+        self.apply_result(task, result)
+
 
     def compare_all_references(self):
-        nbr_scenes = len(self.scenes_data_sets)
-        pbar_scenes = pbh.ProgressBarHandler(total=nbr_scenes, disable=self.disable_progress_bar)
-        pbar_scenes.set_description("Compare all scenes from: " + self.file_path)
-        
-        for i in range(0, nbr_scenes):
-            self.compare_references(i)
-            pbar_scenes.update(1)
-        pbar_scenes.close()
-
-        return nbr_scenes
+        return self._run_tasks("compare", "Compare all scenes from: " + self.file_path)
 
 
     def replay_references(self, id_scene):
