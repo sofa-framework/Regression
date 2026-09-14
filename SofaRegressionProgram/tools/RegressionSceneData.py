@@ -215,6 +215,17 @@ class RegressionSceneData:
                 for meca_id in range(nbr_meca):
                     positions = np.asarray(self.meca_objs[meca_id].position.value)
 
+                    if not np.isfinite(positions).all():
+                        helper.writeError(
+                            f"Non-finite position detected for MechanicalObject "
+                            f"{self.meca_objs[meca_id].name.value} while writing references for "
+                            f"{self.file_scene_path} at t={t}. Refusing to write a reference "
+                            f"containing non-finite values."
+                        )
+                        raise RuntimeError(
+                            f"Non-finite position detected while writing references for {self.file_scene_path}"
+                        )
+
                     if format == "CSV":
                         row = [t]
                         row.extend(positions.reshape(-1).tolist())  # flatten vec3d
@@ -391,12 +402,15 @@ class RegressionSceneData:
 
         # Final regression returns value
         for meca_id in range(nbr_meca):
+            if not np.isfinite(self.error_by_dof[meca_id]):
+                self.regression_failed = True
+                return False
             if self.error_by_dof[meca_id] > self.epsilon:
                 self.regression_failed = True
                 return False
 
         return True
-    
+
 
 
     def compare_legacy_references(self):
@@ -519,6 +533,10 @@ class RegressionSceneData:
 
         mean_total_error = mean_total_error / float(nbr_meca)
         mean_error_by_dof = mean_error_by_dof / float(nbr_meca)
+
+        if not np.isfinite(mean_error_by_dof):
+            self.regression_failed = True
+            return False
 
         if mean_error_by_dof > self.epsilon:
             self.regression_failed = True
