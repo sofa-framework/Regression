@@ -109,14 +109,14 @@ def make_parser():
     parser = argparse.ArgumentParser(
         description='Regression arguments',
         formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--input', 
+    parser.add_argument('--input',
                         dest='input',
                         help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
                              f' processed and compared against a reference for regression detection.',
                         type=str)
-    
-    parser.add_argument('--output', 
-                        dest='output', 
+
+    parser.add_argument('--output',
+                        dest='output',
                         help="Directory where to export data preprocessed",
                         type=str)
 
@@ -137,7 +137,7 @@ def make_parser():
                         dest='replay', 
                         help=f"Will launch runSofa on the scene number X (input number) in the input the list of the {regression_file_extension} file given as input and display the scene references aside from the simulation",
                         type=int)
-    
+
     parser.add_argument(
         "--write-references",
         dest="write_mode",
@@ -199,6 +199,7 @@ if __name__ == '__main__':
         print("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
 
+
     if reg_prog.nbr_jobs > 1:
         print(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
 
@@ -228,7 +229,7 @@ if __name__ == '__main__':
         os.close(old_fd)
 
     np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
-    
+
     nbr_parsing_errors = reg_prog.nbr_parsing_error_in_sets()
 
     print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
@@ -247,5 +248,3 @@ if __name__ == '__main__':
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
-
-    
