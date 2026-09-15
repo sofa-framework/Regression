@@ -183,15 +183,11 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
     Returns:
         int: the number of tasks that were run.
     """
-    from tools import ProgressBarHandler as pbh
 
     nbr_jobs = max(1, resolve_nbr_jobs(nbr_jobs))
     # Never spawn more workers than there is work to do.
     nbr_jobs = min(nbr_jobs, len(tasks)) if tasks else 1
 
-    pbar = pbh.ProgressBarHandler(total=len(tasks), disable=disable_progress_bar)
-    if description is not None:
-        pbar.set_description(description)
 
     def _run(task):
         return run_scene_in_subprocess(
@@ -206,33 +202,29 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             capture_output=nbr_jobs > 1,
         )
 
-    try:
-        if nbr_jobs == 1:
-            for task in tasks:
-                result = _run(task)
-                if on_result is not None:
-                    on_result(task, result)
-                pbar.update(1)
-        else:
-            with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
-                # The threads only wait on their child process: all the result
-                # handling happens here, in the calling thread.
-                futures = {executor.submit(_run, task): task for task in tasks}
-                try:
-                    for future in as_completed(futures):
-                        task = futures[future]
-                        result = future.result()
-                        verbose = task.get("verbose", 1)
-                        if verbose == 2:
-                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
-                        if on_result is not None:
-                            on_result(task, result)
-                        pbar.update(1)
-                except (KeyboardInterrupt, SystemExit):
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    raise
-    finally:
-        pbar.close()
+    if nbr_jobs == 1:
+        for task in tasks:
+            result = _run(task)
+            if on_result is not None:
+                on_result(task, result)
+    else:
+        with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
+            # The threads only wait on their child process: all the result
+            # handling happens here, in the calling thread.
+            futures = {executor.submit(_run, task): task for task in tasks}
+            try:
+                for future in as_completed(futures):
+                    task = futures[future]
+                    result = future.result()
+                    verbose = task.get("verbose", 1)
+                    if verbose == 2:
+                        _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                    if on_result is not None:
+                        on_result(task, result)
+            except (KeyboardInterrupt, SystemExit):
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
+
 
     return len(tasks)
 
