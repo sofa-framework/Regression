@@ -33,6 +33,7 @@ class RegressionProgram:
         self.verbose = verbose
         self.legacy_mode = False
         self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
+        self.logs_output = None
 
         for root, dirs, files in os.walk(input_folder):
             for file in files:
@@ -77,7 +78,8 @@ class RegressionProgram:
             nbr_jobs=self.nbr_jobs,
             on_result=lambda task, result, **kwargs: task["scene_list"].apply_result(task, result, **kwargs),
             description=description,
-            disable_progress_bar=self.disable_progress_bar)
+            disable_progress_bar=self.disable_progress_bar,
+            logs_output=self.logs_output)
 
     def write_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
@@ -197,6 +199,9 @@ if __name__ == '__main__':
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
+
+    if args.output is not None:
+        reg_prog.logsOutput = args.output
 
     nbr_scenes = 0
 

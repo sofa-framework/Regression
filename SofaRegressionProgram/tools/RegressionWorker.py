@@ -38,6 +38,7 @@ import argparse
 import subprocess
 import tempfile
 import itertools
+import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -164,7 +165,7 @@ def _echo_captured_output(header, result):
 
 
 def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
-                    description=None, disable_progress_bar=False):
+                    description=None, disable_progress_bar=False, logs_output=None):
     """Run a list of scenes, up to `nbr_jobs` of them at the same time.
 
     Args:
@@ -201,16 +202,32 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             disable_progress_bar=disable_progress_bar or nbr_jobs > 1,
             verbose=int(task.get("verbose", "1")),
             format=format,
-            capture_output=nbr_jobs > 1,
+            capture_output=True,
         )
 
 
 
     if nbr_jobs == 1:
+        stream_out = sys.stdout
+
         for task in tasks:
+
+            if logs_output is not None:
+                stream_out = io.StringIO()
+
             result = _run(task)
+
+            verbose = task.get("verbose", 1)
+            if verbose == 2:
+                _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
             if on_result is not None:
-                on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})")
+                on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", stream = stream_out)
+
+            if logs_output is not None:
+                #TODO: write in a file
+                print(stream_out.getvalue())
+                stream_out.close()
+
     else:
         with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
             # The threads only wait on their child process: all the result
@@ -221,10 +238,23 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     task = futures[future]
                     result = future.result()
                     verbose = task.get("verbose", 1)
+
+
+                    if logs_output is not None:
+                        stream_out = io.StringIO()
+                    else:
+                        stream_out = sys.stdout
+
                     if verbose == 2:
                         _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                     if on_result is not None:
-                        on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})")
+                        on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",stream = stream_out)
+
+                    if logs_output is not None:
+                        #TODO: write in a file
+                        print(stream_out.getvalue())
+                        stream_out.close()
+
             except (KeyboardInterrupt, SystemExit):
                 executor.shutdown(wait=False, cancel_futures=True)
                 raise
