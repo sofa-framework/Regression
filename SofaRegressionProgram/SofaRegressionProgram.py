@@ -18,7 +18,7 @@ import tools.RegressionWorker as RegressionWorker
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
+    def __init__(self, input_folders, filter = None, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
         """Initialize the RegressionProgram
 
         Args:
@@ -34,15 +34,16 @@ class RegressionProgram:
         self.legacy_mode = False
         self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
 
-        for root, dirs, files in os.walk(input_folder):
-            for file in files:
-                if file.endswith(regression_file_extension):
-                    file_path = os.path.join(root, file)
+        for directory in input_folders :
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    if file.endswith(regression_file_extension):
+                        file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
+                        scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
-                    scene_list.process_file()
-                    self.scene_sets.append(scene_list)
+                        scene_list.process_file()
+                        self.scene_sets.append(scene_list)
 
     def nbr_error_in_sets(self):
         nbr_errors = 0
@@ -113,6 +114,8 @@ def make_parser():
                         dest='input',
                         help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
                              f' processed and compared against a reference for regression detection.',
+                        action='append',
+                        default=[],
                         type=str)
 
     parser.add_argument('--output',
@@ -124,7 +127,7 @@ def make_parser():
                         dest='filter',
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
                         type=str)
-    
+
     parser.add_argument('-j', '--jobs',
                         dest='jobs',
                         help="Number of scenes to process at the same time (each one still runs in its own\n"
@@ -134,7 +137,7 @@ def make_parser():
                         default=1)
 
     parser.add_argument('--replay',
-                        dest='replay', 
+                        dest='replay',
                         help=f"Will launch runSofa on the scene number X (input number) in the input the list of the {regression_file_extension} file given as input and display the scene references aside from the simulation",
                         type=int)
 
@@ -172,6 +175,7 @@ def make_parser():
     parser.epilog = '''
 Examples:
     python SofaRegressionProgram.py --input ./scenes
+    python SofaRegressionProgram.py --input ./scenes --input ./other/scenes
     python SofaRegressionProgram.py --input ./scenes --filter \"$demo.*.scn\"
     python SofaRegressionProgram.py --input ./scenes --replay 5
     python SofaRegressionProgram.py --input ./scenes --jobs 8
@@ -187,7 +191,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # 2- Process file
-    if args.input is not None:
+    if args.input:
         reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose, args.jobs)
     else:
         parser.print_help()
