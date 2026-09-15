@@ -8,18 +8,18 @@ class TermColor:
     RESET = "\033[0m"
 
 
-def writeError(message, verbose):
+def writeError(message, verbose, prefix=''):
     if(verbose >= 0):
-        print(f"{TermColor.RED}[Regression-Error] {TermColor.RESET}{message}")
+        print(f"{prefix}{TermColor.RED}[Regression-Error] {TermColor.RESET}{message}")
 
-def writeWarning(message, verbose):
+def writeWarning(message, verbose, prefix=''):
     if(verbose >= 1):
-        print(f"{TermColor.YELLOW}[Regression-Warning] {TermColor.RESET}{message}")
+        print(f"{prefix}{TermColor.YELLOW}[Regression-Warning] {TermColor.RESET}{message}")
 
-def writeSuccess(message, verbose):
+def writeSuccess(message, verbose, prefix=''):
     if(verbose >= 0):
-        print(f"{TermColor.GREEN}[Regression-Success] {TermColor.RESET}{message}")
+        print(f"{prefix}{TermColor.GREEN}[Regression-Success] {TermColor.RESET}{message}")
 
-def writeLog(message, verbose):
+def writeLog(message, verbose, prefix=''):
     if(verbose >= 2):
-        print(f"{TermColor.CYAN}[Regression-Log] {TermColor.ITALIC}{message}{TermColor.RESET}")
+        print(f"{prefix}{TermColor.CYAN}[Regression-Log] {TermColor.ITALIC}{message}{TermColor.RESET}")

@@ -37,6 +37,7 @@ import json
 import argparse
 import subprocess
 import tempfile
+import itertools
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -187,7 +188,8 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
     nbr_jobs = max(1, resolve_nbr_jobs(nbr_jobs))
     # Never spawn more workers than there is work to do.
     nbr_jobs = min(nbr_jobs, len(tasks)) if tasks else 1
-
+    nbTasks = len(tasks)
+    executed = itertools.count(1)
 
     def _run(task):
         return run_scene_in_subprocess(
@@ -202,11 +204,13 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             capture_output=nbr_jobs > 1,
         )
 
+
+
     if nbr_jobs == 1:
         for task in tasks:
             result = _run(task)
             if on_result is not None:
-                on_result(task, result)
+                on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})")
     else:
         with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
             # The threads only wait on their child process: all the result
@@ -220,7 +224,7 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     if verbose == 2:
                         _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                     if on_result is not None:
-                        on_result(task, result)
+                        on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})")
             except (KeyboardInterrupt, SystemExit):
                 executor.shutdown(wait=False, cancel_futures=True)
                 raise

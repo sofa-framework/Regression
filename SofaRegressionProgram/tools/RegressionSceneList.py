@@ -223,24 +223,24 @@ class RegressionSceneList:
         return [self.build_task(i, mode) for i in range(len(self.scenes_data_sets))]
 
 
-    def apply_result(self, task, result):
+    def apply_result(self, task, result, log_prefix=''):
         """Collect the outcome reported by a worker process for one scene."""
         scene = self.scenes_data_sets[task["id_scene"]]
 
         if task["mode"] == "write":
             if not result.get("ok", False):
-                helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}", self.verbose)
+                helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix)
             return
 
         if not result.get("ok", False):
             # Hard failure (scene could not be loaded / worker crashed).
             self.nbr_errors = self.nbr_errors + 1
-            helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose)
+            helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix)
             return
 
         # Bring the worker's outcome back so log_errors() reports it as usual.
         scene.apply_worker_result(result)
-        scene.log_errors()
+        scene.log_errors(log_prefix)
         if not result.get("result", False):
             self.nbr_errors = self.nbr_errors + 1
 

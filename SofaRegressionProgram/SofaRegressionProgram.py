@@ -75,7 +75,7 @@ class RegressionProgram:
         return RegressionWorker.run_scene_tasks(
             tasks,
             nbr_jobs=self.nbr_jobs,
-            on_result=lambda task, result: task["scene_list"].apply_result(task, result),
+            on_result=lambda task, result, **kwargs: task["scene_list"].apply_result(task, result, **kwargs),
             description=description,
             disable_progress_bar=self.disable_progress_bar)
 
