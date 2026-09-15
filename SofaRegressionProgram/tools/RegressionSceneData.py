@@ -349,7 +349,7 @@ class RegressionSceneData:
             simu_time = dt * step
 
             # Use tolerance for float comparison
-            if frame_step < nbr_frames and np.isclose(simu_time, keyframes[frame_step]):
+            if frame_step < nbr_frames and abs(simu_time - keyframes[frame_step]) < dt / 2.0:
                 for meca_id in range(nbr_meca):
                     meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
 
@@ -477,7 +477,7 @@ class RegressionSceneData:
             simu_time = dt * step
 
             # Use tolerance for float comparison
-            if frame_step < nbr_frames and np.isclose(simu_time, ref_times[frame_step]):
+            if frame_step < nbr_frames and abs(simu_time - ref_times[frame_step]) < dt / 2.0:
                 for meca_id in range(nbr_meca):
                     meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
                     data_ref = ref_values[meca_id][frame_step]
