@@ -188,6 +188,13 @@ class RegressionSceneData:
         
 
     def write_references(self, format = "JSON"):
+        # prepae per-mechanical-object data
+        nbr_meca = len(self.meca_objs)
+
+        if nbr_meca == 0:
+            helper.writeError(f"No MechanicalObject found to write a reference for {self.file_scene_path}")
+            raise RuntimeError(f"No MechanicalObject found to write a reference for {self.file_scene_path}")
+
         pbar_simu = pbh.ProgressBarHandler(total=self.steps, disable=self.disable_progress_bar)
         pbar_simu.set_description("Simulate: " + self.file_scene_path)
 
@@ -195,9 +202,8 @@ class RegressionSceneData:
         counter_step = 0
         modulo_step = self.steps / self.dump_number_step
         dt = self.root_node.dt.value
-        
-        # prepae per-mechanical-object data
-        nbr_meca = len(self.meca_objs)
+
+        # prepare per-mechanical-object data
         if format == "CSV":
             csv_rows = [[] for _ in range(nbr_meca)]
         elif format == "JSON":
@@ -261,7 +267,12 @@ class RegressionSceneData:
         pbar_simu.set_description("compare_references: " + self.file_scene_path)
 
         nbr_meca = len(self.meca_objs)
-        
+
+        if nbr_meca == 0:
+            helper.writeError(f"No MechanicalObject found to test for {self.file_scene_path}")
+            self.regression_failed = True
+            return False
+
         # Reference data
         keyframes = []  # shared timeline
         if format == "CSV":
