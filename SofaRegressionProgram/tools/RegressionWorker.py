@@ -51,7 +51,7 @@ def _safe_remove(path):
 # Parent side: spawn one child process for one scene
 # --------------------------------------------------
 def run_scene_in_subprocess(scene_data, mode, legacy=False,
-                            disable_progress_bar=False, verbose=False,
+                            disable_progress_bar=False, verbose=1,
                             format="JSON", python_exe=None,
                             capture_output=False):
     """Run a single scene (write or compare) in an isolated child process.
@@ -61,7 +61,7 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         mode (str): "write" to generate references, "compare" to check them.
         legacy (bool): use the legacy reference format (compare only).
         disable_progress_bar (bool): forwarded to the child.
-        verbose (bool): forwarded to the child.
+        verbose (int): forwarded to the child.
         format (str): reference file format ("JSON" or "CSV").
         python_exe (str): interpreter to use for the child (defaults to the
             current one).
@@ -92,12 +92,11 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         "--meca-in-mapping", "1" if scene_data.meca_in_mapping else "0",
         "--dump-number-step", str(scene_data.dump_number_step),
         "--format", format,
+        "--verbose", str(verbose),
         "--result-file", result_path,
     ]
     if legacy:
         cmd.append("--legacy")
-    if verbose:
-        cmd.append("--verbose")
     if disable_progress_bar:
         cmd.append("--disable-progress-bar")
 
@@ -202,7 +201,7 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             # In parallel the per-step progress bars of the children are
             # captured along with their output: they would only produce noise.
             disable_progress_bar=disable_progress_bar or nbr_jobs > 1,
-            verbose=task.get("verbose", False),
+            verbose=int(task.get("verbose", "1")),
             format=format,
             capture_output=nbr_jobs > 1,
         )
@@ -223,8 +222,9 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     for future in as_completed(futures):
                         task = futures[future]
                         result = future.result()
-                        _echo_captured_output(
-                            f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                        verbose = task.get("verbose", 1)
+                        if verbose == 2:
+                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                         if on_result is not None:
                             on_result(task, result)
                         pbar.update(1)
@@ -252,7 +252,7 @@ def _make_worker_parser():
     parser.add_argument("--format", default="JSON")
     parser.add_argument("--result-file", dest="result_file", required=True)
     parser.add_argument("--legacy", action="store_true")
-    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--verbose", default=1, type=int)
     parser.add_argument("--disable-progress-bar", dest="disable_progress_bar", action="store_true")
     return parser
 

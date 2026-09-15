@@ -18,14 +18,14 @@ import tools.RegressionWorker as RegressionWorker
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
+    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1):
         """Initialize the RegressionProgram
 
         Args:
             input_folder (str): Path to the folder containing regression test files.
             filter (str): Regex pattern to filter scene files (e.g., '^demo.*.scn$'). If None, no filter is applied. Defaults to None.
             disable_progress_bar (bool, optional): If True, disable progress bars. Defaults to False.
-            verbose (bool, optional): If True, enable verbose output. Defaults to False.
+            verbose (int, optional): If 0 returns only errors and success, 1 display warnings, 2 display everything. Defaults to 1.
             nbr_jobs (int, optional): Number of scenes to write/compare at the same time. 0 means one per logical core. Defaults to 1.
         """
         self.scene_sets = []  # List <RegressionSceneList>
@@ -109,14 +109,14 @@ def make_parser():
     parser = argparse.ArgumentParser(
         description='Regression arguments',
         formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--input', 
+    parser.add_argument('--input',
                         dest='input',
                         help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
                              f' processed and compared against a reference for regression detection.',
                         type=str)
-    
-    parser.add_argument('--output', 
-                        dest='output', 
+
+    parser.add_argument('--output',
+                        dest='output',
                         help="Directory where to export data preprocessed",
                         type=str)
 
@@ -124,7 +124,7 @@ def make_parser():
                         dest='filter',
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
                         type=str)
-    
+
     parser.add_argument('-j', '--jobs',
                         dest='jobs',
                         help="Number of scenes to process at the same time (each one still runs in its own\n"
@@ -134,10 +134,10 @@ def make_parser():
                         default=1)
 
     parser.add_argument('--replay',
-                        dest='replay', 
+                        dest='replay',
                         help=f"Will launch runSofa on the scene number X (input number) in the input the list of the {regression_file_extension} file given as input and display the scene references aside from the simulation",
                         type=int)
-    
+
     parser.add_argument(
         "--write-references",
         dest="write_mode",
@@ -154,7 +154,8 @@ def make_parser():
         "--verbose",
         dest="verbose",
         help='If set, will display more information',
-        action='store_true'
+        type=int,
+        default = 1
     )
     parser.add_argument(
         "--quiet",
@@ -186,9 +187,13 @@ if __name__ == '__main__':
     parser = make_parser()
     args = parser.parse_args()
 
+    verbose = args.verbose
+    if(args.quiet):
+        verbose = -1
+
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose, args.jobs)
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs)
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
@@ -208,27 +213,14 @@ if __name__ == '__main__':
         reg_prog.replay_references(replayId)
         sys.exit()
 
-    old_fd = os.dup(1)
-    if args.quiet:
-        # Save and redirect
-        sys.stdout.flush()
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, 1)
-        os.close(devnull)
 
     if args.write_mode:
         nbr_scenes = reg_prog.write_all_sets_references()
     else:
         nbr_scenes = reg_prog.compare_all_sets_references()
 
-    if args.quiet:
-        # Restore
-        sys.stdout.flush()
-        os.dup2(old_fd, 1)
-        os.close(old_fd)
-
     np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
-    
+
     nbr_parsing_errors = reg_prog.nbr_parsing_error_in_sets()
 
     print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
@@ -239,7 +231,6 @@ if __name__ == '__main__':
         print ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors))
     if args.write_mode is False:
         print ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()))
-        reg_prog.log_errors_in_sets()
         if reg_prog.nbr_error_in_sets() > 0:
             sys.exit(1) # exit with error(s)
 
@@ -247,5 +238,3 @@ if __name__ == '__main__':
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
-
-    
