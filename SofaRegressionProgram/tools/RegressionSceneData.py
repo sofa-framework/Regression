@@ -18,7 +18,7 @@ def is_simulated(node):
         solver_found = is_simulated(parent)
         if solver_found:
             return True
-        
+
     return False
 
 
@@ -32,12 +32,12 @@ class ReplayState(Sofa.Core.Controller):
         self.t_sim = 0.0
 
         self.ref_data, self.keyframes = reference_io.read_JSON_reference_file(state_filename)
-        
+
         if (self.keyframes[0] == 0.0): # frame 0.0
             tmp_position = np.asarray(self.ref_data[str(self.keyframes[0])])
             self.slave_mo.position = tmp_position.tolist()
             self.frame_step = 1
-           
+
     def onAnimateEndEvent(self, event):
        dt = float(self.node.getRootContext().dt.value)
        self.t_sim += dt
@@ -47,7 +47,7 @@ class ReplayState(Sofa.Core.Controller):
            self.slave_mo.position = tmp_position.tolist()
            self.frame_step += 1
 
-    
+
 def is_mapped(node):
     mapping = node.getMechanicalMapping()
 
@@ -71,7 +71,7 @@ class RegressionSceneData:
         /// Option to test mechanicalObject in Node containing a Mapping (true will test them)
         bool m_mecaInMapping;
         /// Option to compare mechanicalObject dof position at each timestep
-        bool m_dumpNumberStep;    
+        bool m_dumpNumberStep;
         """
         self.file_scene_path = file_scene_path
         self.file_ref_path = file_ref_path
@@ -95,7 +95,7 @@ class RegressionSceneData:
     def print_info(self):
         helper.writeLog("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
               + " " + str(self.epsilon))
-        
+
     def log_errors(self):
         if self.regression_failed:
             helper.writeError(
@@ -147,7 +147,7 @@ class RegressionSceneData:
             # Use this filename format to be compatible with previous version
             #_filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
             _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + meca_obj.name.value + ".json.gz"
-            
+
             compareNode = meca_obj.getContext().addChild("CompareStateNode_"+str(counter))
             cloudPoint = compareNode.addObject('VisualPointCloud', pointSize=10, drawMode="Point", color="green")
             compareNode.addObject(ReplayState(node=compareNode, slave_mo=cloudPoint, state_filename=_filename))
@@ -158,10 +158,10 @@ class RegressionSceneData:
         counter = 0
         for meca_obj in self.meca_objs:
             _filename = self.file_ref_path + ".reference_" + str(counter) + "_" + meca_obj.name.value + "_mstate" + ".txt.gz"
-            
+
             meca_obj.getContext().addObject('WriteState', filename=_filename)
             counter = counter+1
-    
+
 
     def load_scene(self, format = "JSON"):
         if self.verbose:
@@ -185,7 +185,7 @@ class RegressionSceneData:
                     _filename = self.file_ref_path + ".reference_mstate_" + str(counter) + "_" + mecaObj.name.value + ".json.gz"
                 self.filenames.append(_filename)
                 counter = counter+1
-        
+
 
     def write_references(self, format = "JSON"):
         pbar_simu = pbh.ProgressBarHandler(total=self.steps, disable=self.disable_progress_bar)
@@ -195,7 +195,7 @@ class RegressionSceneData:
         counter_step = 0
         modulo_step = self.steps / self.dump_number_step
         dt = self.root_node.dt.value
-        
+
         # prepae per-mechanical-object data
         nbr_meca = len(self.meca_objs)
         if format == "CSV":
@@ -221,9 +221,9 @@ class RegressionSceneData:
                         csv_rows[meca_id].append(row)
                     elif format == "JSON":
                         numpy_data[meca_id][t] = np.copy(positions)
-                
+
                 counter_step = 0
-            
+
             Sofa.Simulation.animate(self.root_node, dt)
             counter_step += 1
             pbar_simu.update(1)
@@ -238,7 +238,7 @@ class RegressionSceneData:
             if format == "CSV":
                 dof_per_point = self.meca_objs[meca_id].position.value.shape[1]
                 n_points = self.meca_objs[meca_id].position.value.shape[0]
-                reference_io.write_CSV_reference_file(self.filenames[meca_id], dof_per_point, n_points, csv_rows[meca_id])               
+                reference_io.write_CSV_reference_file(self.filenames[meca_id], dof_per_point, n_points, csv_rows[meca_id])
             elif format == "JSON":
                 reference_io.write_JSON_reference_file(self.filenames[meca_id], numpy_data[meca_id])
 
@@ -250,7 +250,7 @@ class RegressionSceneData:
         pbar_simu.set_description("compare_references: " + self.file_scene_path)
 
         nbr_meca = len(self.meca_objs)
-        
+
         # Reference data
         keyframes = []  # shared timeline
         if format == "CSV":
@@ -296,7 +296,7 @@ class RegressionSceneData:
 
                         values.append(flat.reshape((n_points, dof_per_point)))
                         times.append(t)
-                    
+
                     ref_values.append(values)
 
                     # Keep timeline from first MechanicalObject
@@ -362,7 +362,7 @@ class RegressionSceneData:
 
                     # Compute total distance between the 2 sets
                     full_dist = np.linalg.norm(data_diff)
-                    error_by_dof = full_dist / float(data_diff.size)
+                    error_by_dof = full_dist / np.sqrt(float(data_diff.size))
 
                     if self.verbose:
                         helper.writeLog(
@@ -396,7 +396,7 @@ class RegressionSceneData:
                 return False
 
         return True
-    
+
 
 
     def compare_legacy_references(self):
@@ -501,7 +501,7 @@ class RegressionSceneData:
                     break
 
             Sofa.Simulation.animate(self.root_node, dt)
-            
+
             pbar_simu.update(1)
         pbar_simu.close()
 
@@ -528,7 +528,7 @@ class RegressionSceneData:
 
 
     def replay_references(self):
-        
+
         # Import the GUI package
         import SofaImGui
         import Sofa.Gui
@@ -537,6 +537,3 @@ class RegressionSceneData:
         Sofa.Gui.GUIManager.SetDimension(1920, 1080)
         Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
-
-
-
