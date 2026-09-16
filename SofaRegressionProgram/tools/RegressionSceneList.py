@@ -1,4 +1,5 @@
 import os
+import math
 import tools.RegressionSceneData as RegressionSceneData
 import tools.RegressionHelper as helper
 import tools.RegressionWorker as RegressionWorker
@@ -38,7 +39,7 @@ class RegressionSceneList:
     def log_scenes_errors(self):
         for scene in self.scenes_data_sets:
             scene.log_errors()
-    
+
     def set_legacy_mode(self, legacy_mode):
         self.legacy_mode = legacy_mode
 
@@ -99,8 +100,8 @@ class RegressionSceneList:
                 self.parsing_error(line_number, f"epsilon must be a number, got '{values[2]}'. "
                                                 f"Expecting: {expected_fields}. Skipping this scene.")
                 return None
-            if epsilon < 0:
-                self.parsing_error(line_number, f"epsilon must be positive, got {epsilon}. "
+            if not math.isfinite(epsilon) or epsilon < 0:
+                self.parsing_error(line_number, f"epsilon must be a finite positive number, got {epsilon}. "
                                                 f"Skipping this scene.")
                 return None
 
@@ -147,7 +148,7 @@ class RegressionSceneList:
         with open(self.file_path, 'r') as the_file:
             data = the_file.readlines()
         the_file.close()
-        
+
         count = 0
         for idx, line in enumerate(data):
             line_number = idx + 1
@@ -290,5 +291,3 @@ class RegressionSceneList:
         self.scenes_data_sets[id_scene].load_scene()
         self.scenes_data_sets[id_scene].add_compare_state()
         self.scenes_data_sets[id_scene].replay_references()
-        
-        
