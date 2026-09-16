@@ -1,3 +1,0 @@
-### Number of sets Done:  2
-### Number of scenes Done:  102
-### Number of scenes failed:  2

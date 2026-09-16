@@ -21,11 +21,11 @@ from tools.RegressionHelper import writeMessage
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
+    def __init__(self, input_folders, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
         """Initialize the RegressionProgram
 
         Args:
-            input_folder (str): Path to the folder containing regression test files.
+            input_folders (list(str)): Paths to folders containing regression test files.
             filter (str): Regex pattern to filter scene files (e.g., '^demo.*.scn$'). If None, no filter is applied. Defaults to None.
             disable_progress_bar (bool, optional): If True, disable progress bars. Defaults to False.
             verbose (int, optional): If 0 returns only errors and success, 1 display warnings, 2 display everything. Defaults to 1.
@@ -42,7 +42,7 @@ class RegressionProgram:
         if self.logs_output is not None :
             err_logs_stream = io.StringIO()
         try:
-          
+
             for directory in input_folders :
                 for root, dirs, files in os.walk(directory):
                     for file in files:
