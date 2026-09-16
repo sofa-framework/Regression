@@ -10,7 +10,7 @@ from tools import ProgressBarHandler as pbh
 
 
 def is_simulated(node):
-    if node.hasODESolver():
+    if node.hasIntegrationScheme():
         return True
 
     # if no Solver in current node, check parent nodes
