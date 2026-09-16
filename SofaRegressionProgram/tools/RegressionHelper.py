@@ -10,19 +10,28 @@ class TermColor:
     ITALIC = "\033[3m"
     RESET = "\033[0m"
 
+class TermTypeStrings:
+    ERROR = "[Regression-Error]"
+    WARNING = "[Regression-Warning]"
+    SUCCESS = "[Regression-Success]"
+    LOG = "[Regression-Log]"
+
+
+def writeMessage(message, stream: TextIO = sys.stdout):
+    print(f"{message}", file=stream, flush=True)
 
 def writeError(message, verbose, prefix='', stream: TextIO = sys.stdout):
     if(verbose >= 0):
-        print(f"{prefix}{TermColor.RED}[Regression-Error] {TermColor.RESET}{message}", file=stream, flush=True)
+        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}", stream = stream)
 
 def writeWarning(message, verbose, prefix='', stream: TextIO = sys.stdout):
     if(verbose >= 1):
-        print(f"{prefix}{TermColor.YELLOW}[Regression-Warning] {TermColor.RESET}{message}", file=stream, flush=True)
+        writeMessage(f"{prefix}{TermColor.YELLOW}{TermTypeStrings.WARNING} {TermColor.RESET}{message}", stream = stream)
 
 def writeSuccess(message, verbose, prefix='', stream: TextIO = sys.stdout):
     if(verbose >= 0):
-        print(f"{prefix}{TermColor.GREEN}[Regression-Success] {TermColor.RESET}{message}", file=stream, flush=True)
+        writeMessage(f"{prefix}{TermColor.GREEN}{TermTypeStrings.SUCCESS} {TermColor.RESET}{message}", stream = stream)
 
 def writeLog(message, verbose, prefix='', stream: TextIO = sys.stdout):
     if(verbose >= 2):
-        print(f"{prefix}{TermColor.CYAN}[Regression-Log] {TermColor.ITALIC}{message}{TermColor.RESET}", file=stream, flush=True)
+        writeMessage(f"{prefix}{TermColor.CYAN}{TermTypeStrings.LOG} {TermColor.ITALIC}{message}{TermColor.RESET}", stream = stream)

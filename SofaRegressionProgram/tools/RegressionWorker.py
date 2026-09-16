@@ -40,6 +40,9 @@ import tempfile
 import itertools
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import tools.RegressionHelper as helper
+from pathlib import Path
+from typing import TextIO
 
 
 def _safe_remove(path):
@@ -147,21 +150,19 @@ def resolve_nbr_jobs(nbr_jobs):
     return nbr_jobs
 
 
-def _echo_captured_output(header, result):
+def _echo_captured_output(header, result, stream_out = sys.stdout, stream_err = sys.stderr  ):
     """Print in one block the output captured from a child process."""
     out = result.get("stdout")
     err = result.get("stderr")
     if not (out or err):
         return
 
-    if out:
-        sys.stdout.write(header + "\n")
-        sys.stdout.write(out if out.endswith("\n") else out + "\n")
-        sys.stdout.flush()
-    if err:
-        sys.stderr.write(header + "\n")
-        sys.stderr.write(err if err.endswith("\n") else err + "\n")
-        sys.stderr.flush()
+    if out and stream_out is not None:
+        print(header, file = stream_out, flush = False)
+        print(out, end = '' if out.endswith("\n") else "\n", file = stream_out, flush = True)
+    if err and stream_err is not None:
+        print(header, file = stream_err, flush = False)
+        print(err, end = '' if err.endswith("\n") else "\n", file = stream_err, flush = True)
 
 
 def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
@@ -206,59 +207,73 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
         )
 
 
+    stream_out = sys.stdout
+    error_logs_file =  None
+    if logs_output is not None:
+        error_logs_file = open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8")
 
-    if nbr_jobs == 1:
-        stream_out = sys.stdout
+    try :
+        if nbr_jobs == 1:
+            for task in tasks:
+                if logs_output is not None:
+                    stream_out = io.StringIO()
 
-        for task in tasks:
+                result = _run(task)
 
-            if logs_output is not None:
-                stream_out = io.StringIO()
+                verbose = task.get("verbose", 1)
+                if verbose == 2:
+                    _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                if on_result is not None:
+                    ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
+                    on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", stream = stream_out)
 
-            result = _run(task)
+                if logs_output is not None:
+                    log_string = stream_out.getvalue()
+                    if (helper.TermTypeStrings.ERROR in log_string):
+                        print(log_string, file=error_logs_file, end='')
+                        _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = error_logs_file, stream_out=None)
+                        print("", file=error_logs_file)
 
-            verbose = task.get("verbose", 1)
-            if verbose == 2:
-                _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
-            if on_result is not None:
-                on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", stream = stream_out)
+                    print(log_string, end='')
+                    stream_out.close()
 
-            if logs_output is not None:
-                #TODO: write in a file
-                print(stream_out.getvalue())
-                stream_out.close()
-
-    else:
-        with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
-            # The threads only wait on their child process: all the result
-            # handling happens here, in the calling thread.
-            futures = {executor.submit(_run, task): task for task in tasks}
-            try:
-                for future in as_completed(futures):
-                    task = futures[future]
-                    result = future.result()
-                    verbose = task.get("verbose", 1)
+        else:
+            with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
+                # The threads only wait on their child process: all the result
+                # handling happens here, in the calling thread.
+                futures = {executor.submit(_run, task): task for task in tasks}
+                try:
+                    for future in as_completed(futures):
+                        task = futures[future]
+                        result = future.result()
+                        verbose = task.get("verbose", 1)
 
 
-                    if logs_output is not None:
-                        stream_out = io.StringIO()
-                    else:
-                        stream_out = sys.stdout
+                        if logs_output is not None:
+                            stream_out = io.StringIO()
 
-                    if verbose == 2:
-                        _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
-                    if on_result is not None:
-                        on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",stream = stream_out)
+                        if verbose == 2:
+                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                        if on_result is not None:
+                            ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
+                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",stream = stream_out)
 
-                    if logs_output is not None:
-                        #TODO: write in a file
-                        print(stream_out.getvalue())
-                        stream_out.close()
+                        if logs_output is not None:
+                            log_string = stream_out.getvalue()
+                            if (helper.TermTypeStrings.ERROR in log_string):
+                                print(log_string, file=error_logs_file, end='')
+                                _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = error_logs_file, stream_out=None)
+                                print("", file=error_logs_file)
 
-            except (KeyboardInterrupt, SystemExit):
-                executor.shutdown(wait=False, cancel_futures=True)
-                raise
+                            print(log_string, end='')
+                            stream_out.close()
 
+                except (KeyboardInterrupt, SystemExit):
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    raise
+    finally:
+        if(error_logs_file is not None):
+            error_logs_file.close()
 
     return len(tasks)
 

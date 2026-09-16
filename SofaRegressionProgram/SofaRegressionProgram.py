@@ -1,7 +1,9 @@
 import os
+import io
 import argparse
 import sys
 import numpy as np
+from pathlib import Path
 
 if "SOFA_ROOT" not in os.environ:
     print('SOFA_ROOT environment variable has not been detected, quitting.')
@@ -14,6 +16,7 @@ import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
 import tools.RegressionWorker as RegressionWorker
+from tools.RegressionHelper import writeMessage
 
 regression_file_extension = ".regression-tests"
 
@@ -117,11 +120,6 @@ def make_parser():
                              f' processed and compared against a reference for regression detection.',
                         type=str)
 
-    parser.add_argument('--output',
-                        dest='output',
-                        help="Directory where to export data preprocessed",
-                        type=str)
-
     parser.add_argument('--filter',
                         dest='filter',
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
@@ -172,6 +170,14 @@ def make_parser():
         action='store_true'
     )
 
+    parser.add_argument(
+        '--output-logs-errors',
+        dest='output',
+        help="Directory where to export logs errors and summary",
+        type=str
+    )
+
+
     parser.epilog = '''
 Examples:
     python SofaRegressionProgram.py --input ./scenes
@@ -201,16 +207,16 @@ if __name__ == '__main__':
         exit("Error: Argument is required ! Quitting.")
 
     if args.output is not None:
-        reg_prog.logsOutput = args.output
+        reg_prog.logs_output = args.output
 
     nbr_scenes = 0
 
     if args.legacy_mode:
-        print("Legacy regression mode activated.")
+        writeMessage("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
 
     if reg_prog.nbr_jobs > 1:
-        print(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
+        writeMessage(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
 
 
     if args.replay is not None:
@@ -228,18 +234,29 @@ if __name__ == '__main__':
 
     nbr_parsing_errors = reg_prog.nbr_parsing_error_in_sets()
 
-    print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
-    print ("### Number of scenes Done:  " + str(nbr_scenes))
+
+    stream_out = io.StringIO()
+
+    writeMessage ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)), stream = stream_out)
+    writeMessage ("### Number of scenes Done:  " + str(nbr_scenes), stream = stream_out)
     if nbr_parsing_errors > 0:
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
-        print ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors))
+        writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors),stream = stream_out)
     if args.write_mode is False:
-        print ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()))
-        if reg_prog.nbr_error_in_sets() > 0:
-            sys.exit(1) # exit with error(s)
+        writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
 
-    if nbr_parsing_errors > 0:
+    if args.output is not None:
+        #Print in file
+        with open(Path(args.output) / "summary.txt", 'w', encoding="utf-8") as summary_file:
+            summary_file.write(stream_out.getvalue())
+
+        #Print in stdout
+        print(stream_out.getvalue(), end='')
+
+
+    if ( args.write_mode is False and reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
         sys.exit(1) # exit with error(s)
+
 
     sys.exit(0) # exit without error
