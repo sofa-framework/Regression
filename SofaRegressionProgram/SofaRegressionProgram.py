@@ -42,26 +42,29 @@ class RegressionProgram:
         if self.logs_output is not None :
             err_logs_stream = io.StringIO()
         try:
-            for root, dirs, files in os.walk(input_folder):
-                for file in files:
-                    if file.endswith(regression_file_extension):
-                        file_path = os.path.join(root, file)
+          
+            for directory in input_folders :
+                for root, dirs, files in os.walk(directory):
+                    for file in files:
+                        if file.endswith(regression_file_extension):
+                            file_path = os.path.join(root, file)
 
-                        scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
+                            scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
-                        if err_logs_stream is not None:
-                            start_steam_out_size = err_logs_stream.tell()
+                            if err_logs_stream is not None:
+                                start_steam_out_size = err_logs_stream.tell()
 
-                        scene_list.process_file(err_log_stream = err_logs_stream)
+                            scene_list.process_file(err_log_stream = err_logs_stream)
 
-                        if err_logs_stream is not None and start_steam_out_size != err_logs_stream.tell():
-                            print("", file=err_logs_stream)
+                            if err_logs_stream is not None and start_steam_out_size != err_logs_stream.tell():
+                                print("", file=err_logs_stream)
 
-                        self.scene_sets.append(scene_list)
+                            self.scene_sets.append(scene_list)
         finally:
             if self.logs_output is not None :
                 with open(Path(self.logs_output) / "parse_errors_logs.txt", 'w', encoding="utf-8") as summary_file:
                     summary_file.write(err_logs_stream.getvalue())
+
 
     def nbr_error_in_sets(self):
         nbr_errors = 0
@@ -133,6 +136,8 @@ def make_parser():
                         dest='input',
                         help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
                              f' processed and compared against a reference for regression detection.',
+                        action='append',
+                        default=[],
                         type=str)
 
     parser.add_argument('--filter',
@@ -196,6 +201,7 @@ def make_parser():
     parser.epilog = '''
 Examples:
     python SofaRegressionProgram.py --input ./scenes
+    python SofaRegressionProgram.py --input ./scenes --input ./other/scenes
     python SofaRegressionProgram.py --input ./scenes --filter \"$demo.*.scn\"
     python SofaRegressionProgram.py --input ./scenes --replay 5
     python SofaRegressionProgram.py --input ./scenes --jobs 8
@@ -215,7 +221,7 @@ if __name__ == '__main__':
         verbose = -1
 
     # 2- Process file
-    if args.input is not None:
+    if args.input:
         reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
     else:
         parser.print_help()
@@ -228,6 +234,7 @@ if __name__ == '__main__':
     if args.legacy_mode:
         writeMessage("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
+
 
     if reg_prog.nbr_jobs > 1:
         writeMessage(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
@@ -271,6 +278,5 @@ if __name__ == '__main__':
 
     if ( args.write_mode is False and reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
         sys.exit(1) # exit with error(s)
-
 
     sys.exit(0) # exit without error
