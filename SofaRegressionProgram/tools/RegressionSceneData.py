@@ -168,8 +168,7 @@ class RegressionSceneData:
             helper.writeLog(f"Loading scene: {self.file_scene_path}")
         self.root_node = Sofa.Simulation.load(self.file_scene_path)
         if not self.root_node: # error while loading
-            helper.writeError("While trying to load {self.file_scene_path}")
-            raise RuntimeError
+            raise RuntimeError("While trying to load {self.file_scene_path}")
         else:
             if self.verbose:
                 helper.writeLog("Initializing root node")
@@ -206,7 +205,6 @@ class RegressionSceneData:
                 meca_dofs = {}
                 numpy_data.append(meca_dofs)
         else:
-            helper.writeError(f"Unsupported format: {format}")
             raise ValueError(f"Unsupported format: {format}")
 
         for step in range(0, self.steps + 1):
@@ -216,14 +214,11 @@ class RegressionSceneData:
                     positions = np.asarray(self.meca_objs[meca_id].position.value)
 
                     if not np.isfinite(positions).all():
-                        helper.writeError(
+                        raise ValueError(
                             f"Non-finite position detected for MechanicalObject "
                             f"{self.meca_objs[meca_id].name.value} while writing references for "
                             f"{self.file_scene_path} at t={t}. Refusing to write a reference "
                             f"containing non-finite values."
-                        )
-                        raise RuntimeError(
-                            f"Non-finite position detected while writing references for {self.file_scene_path}"
                         )
 
                     if format == "CSV":
@@ -298,12 +293,11 @@ class RegressionSceneData:
 
                         expected_size = n_points * dof_per_point
                         if flat.size != expected_size:
-                            helper.writeError(
+                            raise ValueError(
                                 f"Reference size mismatch for file {self.file_scene_path}, "
                                 f"MechanicalObject {meca_id}: "
                                 f"expected {expected_size}, got {flat.size}"
                             )
-                            return False
 
                         values.append(flat.reshape((n_points, dof_per_point)))
                         times.append(t)
@@ -315,11 +309,10 @@ class RegressionSceneData:
                         keyframes = times
                     else:
                         if len(times) != len(keyframes):
-                            helper.writeError(
+                            raise ValueError(
                                 f"Reference timeline mismatch for file {self.file_scene_path}, "
                                 f"MechanicalObject {meca_id}"
                             )
-                            return False
 
                 elif format == "JSON":
                     decoded_array, decoded_keyframes = reference_io.read_JSON_reference_file(self.filenames[meca_id])
@@ -332,12 +325,9 @@ class RegressionSceneData:
                 self.total_error.append(0.0)
                 self.error_by_dof.append(0.0)
 
-            except FileNotFoundError as e:
-                helper.writeError(f"While reading references: {str(e)}")
-                return False
             except KeyError as e:
-                helper.writeError(f"Missing metadata in reference file: {str(e)}")
-                return False
+                e.add_note(f"Missing metadata key {e} in reference file: {self.file_ref_path}")
+                raise
 
         # --------------------------------------------------
         # Simulation + comparison
@@ -362,12 +352,11 @@ class RegressionSceneData:
                         continue
 
                     if meca_dofs.shape != data_ref.shape:
-                        helper.writeError(
+                        raise ValueError(
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
                             f"reference {data_ref.shape} vs current {meca_dofs.shape}"
                         )
-                        return False
 
                     data_diff = data_ref - meca_dofs
 
@@ -435,22 +424,20 @@ class RegressionSceneData:
             try:
                 times, values = reference_io.read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz", self.meca_objs[meca_id])
             except Exception as e:
-                helper.writeError(
-                    f"Error while reading legacy references for MechanicalObject '"
-                    f"{self.meca_objs[meca_id].name.value}': {str(e)}"
-                )
-                return False
+                e.add_note(
+                        f"While reading legacy references for MechanicalObject "
+                        f"'{self.meca_objs[meca_id].name.value}'"
+                    )
 
             # Keep timeline from first MechanicalObject
             if meca_id == 0:
                 ref_times = times
             else:
                 if len(times) != len(ref_times):
-                    helper.writeError(
+                    raise ValueError(
                         f"Reference timeline mismatch for file {self.file_scene_path}, "
                         f"MechanicalObject {meca_id}"
                     )
-                    return False
 
             ref_values.append(values)
             self.total_error.append(0.0)
@@ -483,12 +470,11 @@ class RegressionSceneData:
                     data_ref = ref_values[meca_id][frame_step]
 
                     if meca_dofs.shape != data_ref.shape:
-                        helper.writeError(
+                        raise ValueError(
                             f"Shape mismatch for file {self.file_scene_path}, "
                             f"MechanicalObject {meca_id}: "
                             f"reference {data_ref.shape} vs current {meca_dofs.shape}"
                         )
-                        return False
 
                     data_diff = data_ref - meca_dofs
 
