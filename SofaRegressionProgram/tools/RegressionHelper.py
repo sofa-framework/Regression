@@ -21,10 +21,11 @@ def writeMessage(message, stream: TextIO = sys.stdout):
     print(f"{message}", file=stream, flush=True)
 
 def writeError(message, verbose, prefix='', err_log_stream = None):
+    complete_message = f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}"
     if(verbose >= 0):
-        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}")
+        writeMessage(complete_message)
     if(err_log_stream is not None):
-        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}", stream = err_log_stream)
+        writeMessage(complete_message, stream = err_log_stream)
 
 def writeWarning(message, verbose, prefix=''):
     if(verbose >= 1):

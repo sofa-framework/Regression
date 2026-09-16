@@ -1,0 +1,7 @@
+--- compare: /home/paul/dev/sources/sofaProject/sofa-framework/sofa/examples/Component/Topology/Container/Dynamic/RemovingTetraProcess.scn
+[ERROR]   [TopologicalChangeProcessor(TopologicalChangeProcessor1)] TopologicalChangeProcessor: Error opening file RemovingTqsdetraProcess.txt
+
+(26/102)[31m[Regression-Error] [0m/home/paul/dev/sources/sofaProject/sofa-framework/sofa/examples/Demos/collisionMultiple.scn | Number of key frames compared: 2  | run time: 1.470715367 seconds. 
+    ### Error by dof: [3.283762058910296, 0.13688755203004563, 0.14386972393483843, 0.036312048669560934, 0.075369808987473, 0.029323115440668387] > Threshold: 0.0001
+    ### Total Error: [591.0771706038533, 328.5301248721095, 38.84482546240638, 129.63401375033254, 20.34984842661771, 51.72597563733903]
+
