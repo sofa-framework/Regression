@@ -40,9 +40,7 @@ import tempfile
 import itertools
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import tools.RegressionHelper as helper
 from pathlib import Path
-from typing import TextIO
 
 
 def _safe_remove(path):
@@ -154,6 +152,7 @@ def _echo_captured_output(header, result, stream_out = sys.stdout, stream_err = 
     """Print in one block the output captured from a child process."""
     out = result.get("stdout")
     err = result.get("stderr")
+
     if not (out or err):
         return
 
@@ -163,6 +162,7 @@ def _echo_captured_output(header, result, stream_out = sys.stdout, stream_err = 
     if err and stream_err is not None:
         print(header, file = stream_err, flush = False)
         print(err, end = '' if err.endswith("\n") else "\n", file = stream_err, flush = True)
+
 
 
 def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
@@ -207,35 +207,29 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
         )
 
 
-    stream_out = sys.stdout
-    error_logs_file =  None
+    stream_out = None
     if logs_output is not None:
-        error_logs_file = open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8")
+        stream_out = io.StringIO()
 
     try :
         if nbr_jobs == 1:
             for task in tasks:
-                if logs_output is not None:
-                    stream_out = io.StringIO()
-
                 result = _run(task)
+
+                if stream_out is not None:
+                    start_steam_out_size = stream_out.tell()
 
                 verbose = task.get("verbose", 1)
                 if verbose == 2:
                     _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                 if on_result is not None:
                     ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
-                    on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", stream = stream_out)
+                    on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
 
-                if logs_output is not None:
-                    log_string = stream_out.getvalue()
-                    if (helper.TermTypeStrings.ERROR in log_string):
-                        print(log_string, file=error_logs_file, end='')
-                        _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = error_logs_file, stream_out=None)
-                        print("", file=error_logs_file)
-
-                    print(log_string, end='')
-                    stream_out.close()
+                if stream_out is not None:
+                    _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
+                    if(stream_out.tell() != start_steam_out_size):
+                        print("", file=stream_out)
 
         else:
             with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
@@ -248,32 +242,26 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                         result = future.result()
                         verbose = task.get("verbose", 1)
 
-
-                        if logs_output is not None:
-                            stream_out = io.StringIO()
+                        if stream_out is not None:
+                            start_steam_out_size = stream_out.tell()
 
                         if verbose == 2:
                             _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                         if on_result is not None:
                             ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
-                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",stream = stream_out)
+                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",err_log_stream = stream_out)
 
-                        if logs_output is not None:
-                            log_string = stream_out.getvalue()
-                            if (helper.TermTypeStrings.ERROR in log_string):
-                                print(log_string, file=error_logs_file, end='')
-                                _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = error_logs_file, stream_out=None)
-                                print("", file=error_logs_file)
-
-                            print(log_string, end='')
-                            stream_out.close()
+                        if stream_out is not None:
+                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
+                            if(stream_out.tell() != start_steam_out_size):
+                                print("", file=stream_out)
 
                 except (KeyboardInterrupt, SystemExit):
                     executor.shutdown(wait=False, cancel_futures=True)
                     raise
     finally:
-        if(error_logs_file is not None):
-            error_logs_file.close()
+        with open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8") as error_logs_file:
+            error_logs_file.write(stream_out.getvalue())
 
     return len(tasks)
 

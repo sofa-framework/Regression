@@ -21,7 +21,7 @@ from tools.RegressionHelper import writeMessage
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1):
+    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
         """Initialize the RegressionProgram
 
         Args:
@@ -36,17 +36,32 @@ class RegressionProgram:
         self.verbose = verbose
         self.legacy_mode = False
         self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
-        self.logs_output = None
+        self.logs_output = logs_output
 
-        for root, dirs, files in os.walk(input_folder):
-            for file in files:
-                if file.endswith(regression_file_extension):
-                    file_path = os.path.join(root, file)
+        err_logs_stream = None
+        if self.logs_output is not None :
+            err_logs_stream = io.StringIO()
+        try:
+            for root, dirs, files in os.walk(input_folder):
+                for file in files:
+                    if file.endswith(regression_file_extension):
+                        file_path = os.path.join(root, file)
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
+                        scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
-                    scene_list.process_file()
-                    self.scene_sets.append(scene_list)
+                        if err_logs_stream is not None:
+                            start_steam_out_size = err_logs_stream.tell()
+
+                        scene_list.process_file(err_log_stream = err_logs_stream)
+
+                        if err_logs_stream is not None and start_steam_out_size != err_logs_stream.tell():
+                            print("", file=err_logs_stream)
+
+                        self.scene_sets.append(scene_list)
+        finally:
+            if self.logs_output is not None :
+                with open(Path(self.logs_output) / "parse_errors_logs.txt", 'w', encoding="utf-8") as summary_file:
+                    summary_file.write(err_logs_stream.getvalue())
 
     def nbr_error_in_sets(self):
         nbr_errors = 0
@@ -201,13 +216,12 @@ if __name__ == '__main__':
 
     # 2- Process file
     if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs)
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
 
-    if args.output is not None:
-        reg_prog.logs_output = args.output
+
 
     nbr_scenes = 0
 
@@ -242,7 +256,7 @@ if __name__ == '__main__':
     if nbr_parsing_errors > 0:
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
-        writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors),stream = stream_out)
+        writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors), stream = stream_out)
     if args.write_mode is False:
         writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
 
@@ -251,8 +265,8 @@ if __name__ == '__main__':
         with open(Path(args.output) / "summary.txt", 'w', encoding="utf-8") as summary_file:
             summary_file.write(stream_out.getvalue())
 
-        #Print in stdout
-        print(stream_out.getvalue(), end='')
+    #Print in stdout
+    print(stream_out.getvalue(), end='')
 
 
     if ( args.write_mode is False and reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:

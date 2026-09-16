@@ -47,20 +47,20 @@ class RegressionSceneList:
         self.legacy_mode = legacy_mode
 
 
-    def parsing_error(self, line_number, message):
+    def parsing_error(self, line_number, message, err_log_stream = None):
         """Report a line of the list file that cannot be used, and count it.
 
         A malformed line only invalidates the scene it describes: it must never
         interrupt the parsing of the file, nor the whole regression run.
         """
         self.nbr_parsing_errors = self.nbr_parsing_errors + 1
-        helper.writeError(f"{self.file_path}:{line_number}: {message}", self.verbose)
+        helper.writeError(f"{self.file_path}:{line_number}: {message}", self.verbose, err_log_stream = err_log_stream)
 
     def parsing_warning(self, line_number, message):
         helper.writeWarning(f"{self.file_path}:{line_number}: {message}", self.verbose)
 
 
-    def parse_scene_line(self, values, line_number):
+    def parse_scene_line(self, values, line_number, err_log_stream = None):
         """Parse one scene line of the list file.
 
         Args:
@@ -89,11 +89,13 @@ class RegressionSceneList:
                 steps = int(values[1])
             except ValueError:
                 self.parsing_error(line_number, f"steps must be an integer, got '{values[1]}'. "
-                                                f"Expecting: {expected_fields}. Skipping this scene.")
+                                                f"Expecting: {expected_fields}. Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
             if steps <= 0:
                 self.parsing_error(line_number, f"steps must be strictly positive, got {steps}. "
-                                                f"Skipping this scene.")
+                                                f"Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
 
         if len(values) < 3:
@@ -104,11 +106,13 @@ class RegressionSceneList:
                 epsilon = float(values[2])
             except ValueError:
                 self.parsing_error(line_number, f"epsilon must be a number, got '{values[2]}'. "
-                                                f"Expecting: {expected_fields}. Skipping this scene.")
+                                                f"Expecting: {expected_fields}. Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
             if epsilon < 0:
                 self.parsing_error(line_number, f"epsilon must be positive, got {epsilon}. "
-                                                f"Skipping this scene.")
+                                                f"Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
 
         if len(values) < 4:
@@ -116,7 +120,8 @@ class RegressionSceneList:
                                 f"Default value {meca_in_mapping} will be used instead.")
         elif values[3] not in ('0', '1'):
             self.parsing_error(line_number, f"meca_in_mapping must be 0 or 1, got '{values[3]}'. "
-                                            f"Expecting: {expected_fields}. Skipping this scene.")
+                                            f"Expecting: {expected_fields}. Skipping this scene.",
+                                            err_log_stream = err_log_stream)
             return None
         else:
             meca_in_mapping = (values[3] == '1')  # converting string to Bool always gives True
@@ -129,18 +134,21 @@ class RegressionSceneList:
                 dump_number_step = int(values[4])
             except ValueError:
                 self.parsing_error(line_number, f"dump_number_step must be an integer, got '{values[4]}'. "
-                                                f"Expecting: {expected_fields}. Skipping this scene.")
+                                                f"Expecting: {expected_fields}. Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
             # dump_number_step is used as a divider of the number of steps
             if dump_number_step <= 0:
                 self.parsing_error(line_number, f"dump_number_step must be strictly positive, "
-                                                f"got {dump_number_step}. Skipping this scene.")
+                                                f"got {dump_number_step}. Skipping this scene.",
+                                                err_log_stream = err_log_stream)
                 return None
 
         full_file_path = os.path.normpath(os.path.join(self.file_dir, values[0]))
         if not os.path.isfile(full_file_path):
             self.parsing_error(line_number, f"scene file does not exist: {full_file_path}. "
-                                            f"Skipping this scene.")
+                                            f"Skipping this scene.",
+                                            err_log_stream = err_log_stream)
             return None
 
         full_ref_file_path = os.path.normpath(os.path.join(self.ref_dir_path, values[0]))
@@ -150,7 +158,7 @@ class RegressionSceneList:
                                                        self.disable_progress_bar, self.verbose)
 
 
-    def process_file(self):
+    def process_file(self, err_log_stream = None):
         with open(self.file_path, 'r') as the_file:
             data = the_file.readlines()
         the_file.close()
@@ -173,7 +181,8 @@ class RegressionSceneList:
                     else:
                         self.parsing_error(line_number, f"the environment variable $REGRESSION_DIR is required but not set. "
                                                         f"Please set this variable to the root directory of your regression tests to proceed. "
-                                                        f"No scene of this file will be processed.")
+                                                        f"No scene of this file will be processed.",
+                                                        err_log_stream = err_log_stream)
                         return
                 else: # direct absolute or relative path
                     self.ref_dir_path = os.path.join(self.file_dir, values[0])
@@ -181,7 +190,8 @@ class RegressionSceneList:
 
                 if not os.path.isdir(self.ref_dir_path):
                     self.parsing_error(line_number, f"reference directory does not exist: {self.ref_dir_path}. "
-                                                    f"No scene of this file will be processed.")
+                                                    f"No scene of this file will be processed.",
+                                                    err_log_stream = err_log_stream)
                     return
 
                 helper.writeLog(f'Reference directory mentioned by file \'{self.file_path}\': {self.ref_dir_path}', self.verbose)
@@ -194,7 +204,8 @@ class RegressionSceneList:
 
             # An invalid line is reported and skipped: the other scenes of the
             # file must still be processed.
-            scene_data = self.parse_scene_line(values, line_number)
+            scene_data = self.parse_scene_line(values, line_number,
+                                               err_log_stream = err_log_stream)
             if scene_data is None:
                 continue
 
@@ -224,24 +235,24 @@ class RegressionSceneList:
         return [self.build_task(i, mode) for i in range(len(self.scenes_data_sets))]
 
 
-    def apply_result(self, task, result, log_prefix='',stream = sys.stdout):
+    def apply_result(self, task, result, log_prefix='', err_log_stream = None):
         """Collect the outcome reported by a worker process for one scene."""
         scene = self.scenes_data_sets[task["id_scene"]]
 
         if task["mode"] == "write":
             if not result.get("ok", False):
-                helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, stream)
+                helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, err_log_stream)
             return
 
         if not result.get("ok", False):
             # Hard failure (scene could not be loaded / worker crashed).
             self.nbr_errors = self.nbr_errors + 1
-            helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, stream)
+            helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, err_log_stream)
             return
 
         # Bring the worker's outcome back so log_errors() reports it as usual.
         scene.apply_worker_result(result)
-        scene.log_errors(log_prefix,stream)
+        scene.log_errors(log_prefix,err_log_stream)
         if not result.get("result", False):
             self.nbr_errors = self.nbr_errors + 1
 

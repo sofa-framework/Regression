@@ -97,7 +97,7 @@ class RegressionSceneData:
         helper.writeLog("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
               + " " + str(self.epsilon), self.verbose)
 
-    def log_errors(self, log_prefix='', stream=sys.stdout):
+    def log_errors(self, log_prefix='', err_log_stream=None):
         if self.regression_failed:
             helper.writeError(
                                 f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame}  | run time: {self.total_run_time/1e9} seconds. "
@@ -105,18 +105,17 @@ class RegressionSceneData:
                                 f"\n    ### Total Error: {self.total_error}",
                                 self.verbose,
                                 log_prefix,
-                                stream
+                                err_log_stream = err_log_stream
                             )
         elif self.nbr_tested_frame == 0:
             helper.writeError(f"No frames were tested for {self.file_scene_path}",
                               self.verbose,
                               log_prefix,
-                              stream)
+                              err_log_stream = err_log_stream)
         else:
             helper.writeSuccess(f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame} | run time: {self.total_run_time/1e9} seconds. ",
                                 self.verbose,
-                                log_prefix,
-                                stream)
+                                log_prefix)
 
     def apply_worker_result(self, result):
         """Copy the fields reported by an isolated worker process back onto this

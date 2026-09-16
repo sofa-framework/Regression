@@ -20,18 +20,20 @@ class TermTypeStrings:
 def writeMessage(message, stream: TextIO = sys.stdout):
     print(f"{message}", file=stream, flush=True)
 
-def writeError(message, verbose, prefix='', stream: TextIO = sys.stdout):
+def writeError(message, verbose, prefix='', err_log_stream = None):
     if(verbose >= 0):
-        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}", stream = stream)
+        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}")
+    if(err_log_stream is not None):
+        writeMessage(f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}", stream = err_log_stream)
 
-def writeWarning(message, verbose, prefix='', stream: TextIO = sys.stdout):
+def writeWarning(message, verbose, prefix=''):
     if(verbose >= 1):
-        writeMessage(f"{prefix}{TermColor.YELLOW}{TermTypeStrings.WARNING} {TermColor.RESET}{message}", stream = stream)
+        writeMessage(f"{prefix}{TermColor.YELLOW}{TermTypeStrings.WARNING} {TermColor.RESET}{message}")
 
-def writeSuccess(message, verbose, prefix='', stream: TextIO = sys.stdout):
+def writeSuccess(message, verbose, prefix=''):
     if(verbose >= 0):
-        writeMessage(f"{prefix}{TermColor.GREEN}{TermTypeStrings.SUCCESS} {TermColor.RESET}{message}", stream = stream)
+        writeMessage(f"{prefix}{TermColor.GREEN}{TermTypeStrings.SUCCESS} {TermColor.RESET}{message}")
 
-def writeLog(message, verbose, prefix='', stream: TextIO = sys.stdout):
+def writeLog(message, verbose, prefix=''):
     if(verbose >= 2):
-        writeMessage(f"{prefix}{TermColor.CYAN}{TermTypeStrings.LOG} {TermColor.ITALIC}{message}{TermColor.RESET}", stream = stream)
+        writeMessage(f"{prefix}{TermColor.CYAN}{TermTypeStrings.LOG} {TermColor.ITALIC}{message}{TermColor.RESET}")
