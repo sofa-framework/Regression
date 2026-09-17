@@ -319,6 +319,9 @@ class RegressionSceneList:
     def compare_all_references(self):
         return self._run_tasks("compare", "Compare all scenes from: " + self.file_path)
 
+    def is_replay_available(self):
+        #TODO check if sceneData type is able to do it
+        return True
 
     def replay_references(self, id_scene):
         if (id_scene < 0 or id_scene >= len(self.scenes_data_sets)):

@@ -80,12 +80,10 @@ class RegressionSceneData:
         self.epsilon = float(epsilon)
         self.meca_in_mapping = bool(meca_in_mapping)
         self.dump_number_step = int(dump_number_step)
-        self.meca_objs = []
         self.filenames = []
         self.mins = []
         self.maxs = []
         self.total_error = []
-        self.error_by_dof = []
         self.nbr_tested_frame = 0
         self.regression_failed = False
         self.root_node = None
@@ -96,6 +94,39 @@ class RegressionSceneData:
     def print_info(self):
         helper.writeLog("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
               + " " + str(self.epsilon), self.verbose)
+
+    def log_errors(self, log_prefix='', err_log_stream=None):
+        pass
+
+    def apply_worker_result(self, result):
+        pass
+
+    def parse_node(self, node, level = 0):
+        pass
+
+    def load_scene(self, format = "JSON"):
+        pass
+
+    def write_references(self, format = "JSON"):
+        pass
+
+    def compare_references(self, format = "JSON"):
+        pass
+
+    def compare_legacy_references(self):
+        pass
+
+    def is_replay_available(self):
+        return False
+
+class StateRegressionSceneData(RegressionSceneData):
+    def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = 1):
+
+        RegressionSceneData.__init__(self, file_scene_path, file_ref_path, steps, epsilon, meca_in_mapping, dump_number_step, disable_progress_bar, verbose)
+
+        self.meca_objs = []
+        self.error_by_dof = []
 
     def log_errors(self, log_prefix='', err_log_stream=None):
         if self.regression_failed:
@@ -541,6 +572,8 @@ class RegressionSceneData:
 
         return True
 
+    def is_replay_available(self):
+        return True
 
     def replay_references(self):
 
