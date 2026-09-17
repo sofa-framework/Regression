@@ -1,21 +1,39 @@
+from enum import Enum
 import os
 import math
 import tools.RegressionSceneData as RegressionSceneData
 import tools.RegressionHelper as helper
 import tools.RegressionWorker as RegressionWorker
 import sys
+from pathlib import Path
 
 import re
 
 ## This class is responsible for loading a file.regression-tests to gather the list of scene to test with all arguments
 ## It will provide the API to launch the tests or write refs on all scenes contained in this file
 class RegressionSceneList:
+
+    class RegressionType(Enum):
+        STATE = "RegressionStateScenes"
+        TOPOLOGY = "RegressionTopologyScenes"
+
+
     def __init__(self, file_path, filter, disable_progress_bar = False, verbose = 1, nbr_jobs = 1):
         """
         /// Path to the file.regression-tests containing the list of scene to tests with all arguments
         std::string filePath;
         """
         self.file_path = file_path
+
+        self.regression_type = None
+        for reg_type in RegressionSceneList.RegressionType:
+           if reg_type.value in Path(self.file_path).name:
+               self.regression_type = reg_type
+               break
+
+        if self.regression_type is None:
+            raise ValueError(f"Regression type {Path(self.file_path).name} not recognize, can be of types {[reg_type.value for reg_type in RegressionSceneList.RegressionType]}.")
+
         self.filter = filter
         self.file_dir = os.path.dirname(file_path)
         self.scenes_data_sets = [] # List<RegressionSceneData>

@@ -16,12 +16,12 @@ import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
 import tools.RegressionWorker as RegressionWorker
-from tools.RegressionHelper import writeMessage
+from tools.RegressionHelper import writeMessage, writeWarning
 
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folders, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
+    def __init__(self, input_folders, filter = None, reg_type = 'ALL',  disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
         """Initialize the RegressionProgram
 
         Args:
@@ -46,9 +46,10 @@ class RegressionProgram:
             for directory in input_folders :
                 for root, dirs, files in os.walk(directory):
                     for file in files:
-                        if file.endswith(regression_file_extension):
-                            file_path = os.path.join(root, file)
+                        file_path = os.path.join(root, file)
 
+                        #Warning lazy or in the end, if not lazy then this breaks
+                        if file.endswith(regression_file_extension) and (reg_type == 'ALL' or RegressionSceneList.RegressionSceneList.RegressionType[reg_type].value in file) :
                             scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
                             if err_logs_stream is not None:
@@ -60,6 +61,9 @@ class RegressionProgram:
                                 print("", file=err_logs_stream)
 
                             self.scene_sets.append(scene_list)
+                        elif file.endswith(regression_file_extension):
+                            writeWarning(f"Regression file {file_path} skipped because of selected regression type {reg_type}", self.verbose)
+
         finally:
             if self.logs_output is not None :
                 with open(Path(self.logs_output) / "parse_errors_logs.txt", 'w', encoding="utf-8") as summary_file:
@@ -139,6 +143,15 @@ def make_parser():
                         action='append',
                         default=[],
                         type=str)
+
+    regression_type_choices = ['ALL', *(reg_type.name for reg_type in RegressionSceneList.RegressionSceneList.RegressionType)]
+    parser.add_argument('--regression-type',
+                        dest='reg_type',
+                        choices=regression_type_choices,
+                        help=f"The regression type from {regression_type_choices}. Default value is ALL.",
+                        type=str,
+                        default='ALL')
+
 
     parser.add_argument('--filter',
                         dest='filter',
@@ -222,7 +235,7 @@ if __name__ == '__main__':
 
     # 2- Process file
     if args.input:
-        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
+        reg_prog = RegressionProgram(args.input, args.filter, args.reg_type, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
