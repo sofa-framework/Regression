@@ -345,9 +345,11 @@ def _worker_main():
                 "error": None,
                 **scene.__dict__
             }
-            ## Remove data that break json
-            result.__delitem__("meca_objs")
-            result.__delitem__("root_node")
+            ## Remove data that break json. Not every regression type carries
+            ## every one of these attributes (e.g. TopologyRegressionSceneData
+            ## has no "meca_objs"), so remove them only if present.
+            for key in ("meca_objs", "root_node", "topology", "error_topology"):
+                result.pop(key, None)
 
     except Exception as e:
         import traceback
