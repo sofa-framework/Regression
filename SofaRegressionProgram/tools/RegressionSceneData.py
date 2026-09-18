@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import time
 import numpy as np
 import pathlib
@@ -80,12 +81,10 @@ class RegressionSceneData:
         self.epsilon = float(epsilon)
         self.meca_in_mapping = bool(meca_in_mapping)
         self.dump_number_step = int(dump_number_step)
-        self.meca_objs = []
         self.filenames = []
         self.mins = []
         self.maxs = []
         self.total_error = []
-        self.error_by_dof = []
         self.nbr_tested_frame = 0
         self.regression_failed = False
         self.root_node = None
@@ -96,6 +95,37 @@ class RegressionSceneData:
     def print_info(self):
         helper.writeLog("Test scene: " + self.file_scene_path + " vs " + self.file_ref_path + " using: " + str(self.steps)
               + " " + str(self.epsilon), self.verbose)
+
+    def log_errors(self, log_prefix='', err_log_stream=None):
+        pass
+
+    def apply_worker_result(self, result):
+        pass
+
+    def parse_node(self, node, level = 0):
+        pass
+
+    def load_scene(self, format = "JSON"):
+        pass
+
+    def write_references(self, format = "JSON"):
+        pass
+
+    def compare_references(self, format = "JSON"):
+        pass
+
+    def compare_legacy_references(self):
+        pass
+
+
+class StateRegressionSceneData(RegressionSceneData):
+    def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = 1):
+
+        RegressionSceneData.__init__(self, file_scene_path, file_ref_path, steps, epsilon, meca_in_mapping, dump_number_step, disable_progress_bar, verbose)
+
+        self.meca_objs = []
+        self.error_by_dof = []
 
     def log_errors(self, log_prefix='', err_log_stream=None):
         if self.regression_failed:
@@ -541,6 +571,9 @@ class RegressionSceneData:
 
         return True
 
+    @staticmethod
+    def is_replay_available():
+        return True
 
     def replay_references(self):
 
@@ -552,3 +585,406 @@ class RegressionSceneData:
         Sofa.Gui.GUIManager.SetDimension(1920, 1080)
         Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
+
+class TopologyRegressionSceneData(RegressionSceneData):
+
+    # Categories checked by the legacy CompareTopology visitor, in the order
+    # they were written to the reference files.
+    topology_categories = ("edges", "triangles", "quads", "tetrahedra", "hexahedra")
+
+    @dataclass
+    class TopologyError():
+        edges_error : list[float]
+        triangle_error : list[float]
+        quad_error : list[float]
+        tetra_error : list[float]
+        hexa_error : list[float]
+
+    def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = 1):
+
+        RegressionSceneData.__init__(self, file_scene_path, file_ref_path, steps, epsilon, meca_in_mapping, dump_number_step, disable_progress_bar, verbose)
+
+        self.topology = []
+        # Kept as flat, individually JSON-serializable attributes (rather than
+        # inside a TopologyError instance) so they survive the trip through
+        # the isolated worker subprocess: see error_topology below.
+        self.edges_error = []
+        self.triangle_error = []
+        self.quad_error = []
+        self.tetra_error = []
+        self.hexa_error = []
+
+    @property
+    def error_topology(self):
+        """Convenience read-only view combining the per-category error lists
+        into a single TopologyError. Built on demand (never stored) so that
+        it never ends up in self.__dict__, which the worker subprocess
+        serializes to JSON to report results back - a TopologyError instance
+        itself is not JSON-serializable."""
+        return TopologyRegressionSceneData.TopologyError(
+            self.edges_error, self.triangle_error, self.quad_error, self.tetra_error, self.hexa_error
+        )
+
+    @staticmethod
+    def is_replay_available():
+        return False
+
+    def log_errors(self, log_prefix='', err_log_stream=None):
+        if self.regression_failed:
+            helper.writeError(
+                                f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame} | run time: {self.total_run_time/1e9} seconds. "
+                                f"\n    ### Errors by topology container:"
+                                f"\n        Edges: {self.error_topology.edges_error}"
+                                f"\n        Triangles: {self.error_topology.triangle_error}"
+                                f"\n        Quads: {self.error_topology.quad_error}"
+                                f"\n        Tetrahedra: {self.error_topology.tetra_error}"
+                                f"\n        Hexahedra: {self.error_topology.hexa_error}"
+                                f"\n    ### Total Error: {self.total_error} > Threshold: {self.epsilon}",
+                                self.verbose,
+                                log_prefix,
+                                err_log_stream = err_log_stream
+                            )
+        elif self.nbr_tested_frame == 0:
+            helper.writeError(f"No frames were tested for {self.file_scene_path}",
+                              self.verbose,
+                              log_prefix,
+                              err_log_stream = err_log_stream)
+        else:
+            helper.writeSuccess(f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame} | run time: {self.total_run_time/1e9} seconds. ",
+                                self.verbose,
+                                log_prefix)
+
+    def apply_worker_result(self, result):
+        """Copy the fields reported by an isolated worker process back onto this
+        object so that log_errors() and error counting behave as if the scene had
+        been compared in-process."""
+        self.regression_failed = bool(result.get("regression_failed", False))
+        self.nbr_tested_frame = int(result.get("nbr_tested_frame", 0))
+        self.total_run_time = result.get("total_run_time", 0)
+        self.total_error = result.get("total_error", [])
+        self.edges_error = result.get("edges_error", [])
+        self.triangle_error = result.get("triangle_error", [])
+        self.quad_error = result.get("quad_error", [])
+        self.tetra_error = result.get("tetra_error", [])
+        self.hexa_error = result.get("hexa_error", [])
+
+
+    def parse_node(self, node, level = 0):
+        # Mirrors CompareTopologyCreator::processNodeTopDown: only a topology
+        # container attached directly to this node is considered (not one
+        # inherited from a parent), so the same physical container is never
+        # tested twice through two different nodes.
+        topo = node.getMeshTopology(Sofa.Core.BaseContext.SearchDirection.Local)
+        if topo is not None and (self.meca_in_mapping is True or is_mapped(node) is False):
+                self.topology.append(topo)
+                helper.writeLog("  " * level + f"- Adding Topology: {topo.name.value} from Node: {node.name.value}", self.verbose)
+
+        # recursively check children
+        for child in node.children:
+            self.parse_node(child, level + 1)
+
+
+    @staticmethod
+    def _get_topology_state(topo):
+        """Snapshot of a BaseMeshTopology's element containers, read directly
+        through the python bindings (no WriteTopology/ReadTopology component
+        added to the scene)."""
+        return {
+            "edges": [tuple(topo.getEdge(i)) for i in range(topo.getNbEdges())],
+            "triangles": [tuple(topo.getTriangle(i)) for i in range(topo.getNbTriangles())],
+            "quads": [tuple(topo.getQuad(i)) for i in range(topo.getNbQuads())],
+            "tetrahedra": [tuple(topo.getTetrahedron(i)) for i in range(topo.getNbTetrahedra())],
+            "hexahedra": [tuple(topo.getHexahedron(i)) for i in range(topo.getNbHexahedra())],
+        }
+
+
+    @staticmethod
+    def _compare_topology_states(ref_state, current_state):
+        """Reproduce CompareTopology::processCompareTopology: for each
+        category, a count mismatch adds the absolute difference in count as
+        the error; otherwise every element is compared and each mismatching
+        one adds 1. A reference count of 0 means the category was never
+        recorded for this frame (the legacy writer always writes the count,
+        even when null, but the legacy reader/comparator only acts on it when
+        non-zero), so it is skipped rather than compared against 0.
+        """
+        errors = {}
+        for category in TopologyRegressionSceneData.topology_categories:
+            ref_elements = ref_state.get(category, [])
+            ref_count = len(ref_elements)
+
+            if ref_count == 0:
+                errors[category] = 0
+                continue
+
+            cur_elements = current_state[category]
+            cur_count = len(cur_elements)
+
+            if ref_count != cur_count:
+                errors[category] = abs(ref_count - cur_count)
+            else:
+                errors[category] = sum(
+                    1 for ref_elem, cur_elem in zip(ref_elements, cur_elements)
+                    if list(ref_elem) != list(cur_elem)
+                )
+        return errors
+
+
+    def load_scene(self, format = "JSON"):
+        helper.writeLog(f"Loading scene: {self.file_scene_path}", self.verbose)
+        self.root_node = Sofa.Simulation.load(self.file_scene_path)
+        if not self.root_node: # error while loading
+            raise RuntimeError(f"While trying to load {self.file_scene_path}")
+        else:
+            helper.writeLog("Initializing root node", self.verbose)
+            Sofa.Simulation.initRoot(self.root_node)
+
+            # prepare ref files per topology container:
+            self.parse_node(self.root_node, 0)
+            counter = 0
+            for topo in self.topology:
+                if format != "JSON":
+                    raise ValueError(f"Unsupported format for TOPOLOGY regression: {format}")
+                _filename = self.file_ref_path + ".reference_topology_" + str(counter) + "_" + topo.name.value + ".json.gz"
+                self.filenames.append(_filename)
+                counter = counter + 1
+
+
+    def write_references(self, format = "JSON"):
+        if format != "JSON":
+            raise ValueError(f"Unsupported format for TOPOLOGY regression: {format}")
+
+        pbar_simu = pbh.ProgressBarHandler(total=self.steps, disable=self.disable_progress_bar)
+        pbar_simu.set_description("Simulate: " + self.file_scene_path)
+
+        dt = self.root_node.dt.value
+        nbr_topo = len(self.topology)
+        numpy_data = [dict() for _ in range(nbr_topo)] # List<map>
+
+        # The legacy WriteTopology component listens to AnimateBeginEvent, the
+        # same event used by topology-mutating components (e.g.
+        # TopologicalChangeProcessor). Since those are dispatched first, by
+        # the time WriteTopology records the topology for time step*dt, any
+        # change scheduled at that same time has already been applied. We
+        # reproduce this by sampling right after the animate() call that
+        # advances the simulation to step*dt, rather than before it.
+        for step in range(self.steps):
+            Sofa.Simulation.animate(self.root_node, dt)
+            pbar_simu.update(1)
+
+            t = dt * step
+            for topo_id in range(nbr_topo):
+                numpy_data[topo_id][t] = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+
+        pbar_simu.close()
+
+        # write reference files
+        for topo_id in range(nbr_topo):
+            output_file = pathlib.Path(self.filenames[topo_id])
+            output_file.parent.mkdir(exist_ok=True, parents=True)
+            reference_io.write_JSON_reference_file(self.filenames[topo_id], numpy_data[topo_id])
+
+        Sofa.Simulation.unload(self.root_node)
+
+
+    def compare_references(self, format = "JSON"):
+        if format != "JSON":
+            helper.writeError(f"Unsupported format: {format}", self.verbose)
+            raise ValueError(f"Unsupported format: {format}")
+
+        pbar_simu = pbh.ProgressBarHandler(total=float(self.steps), disable=self.disable_progress_bar)
+        pbar_simu.set_description("compare_references: " + self.file_scene_path)
+
+        nbr_topo = len(self.topology)
+
+        # Reference data
+        keyframes = [] # shared timeline
+        numpy_data = [] # List<map>
+
+        # Outputs init
+        self.total_error = [0.0] * nbr_topo
+        self.edges_error = [0.0] * nbr_topo
+        self.triangle_error = [0.0] * nbr_topo
+        self.quad_error = [0.0] * nbr_topo
+        self.tetra_error = [0.0] * nbr_topo
+        self.hexa_error = [0.0] * nbr_topo
+        self.nbr_tested_frame = 0
+        self.regression_failed = False
+
+        # --------------------------------------------------
+        # Load reference files
+        # --------------------------------------------------
+        for topo_id in range(nbr_topo):
+            try:
+                decoded_array, decoded_keyframes = reference_io.read_JSON_reference_file(self.filenames[topo_id])
+            except KeyError as e:
+                e.add_note(f"Missing metadata key {e} in reference file: {self.file_ref_path}")
+                raise
+            numpy_data.append(decoded_array)
+
+            # Keep timeline from first topology container
+            if topo_id == 0:
+                keyframes = decoded_keyframes
+
+        # --------------------------------------------------
+        # Simulation + comparison
+        # --------------------------------------------------
+        nbr_frames = len(keyframes)
+        dt = self.root_node.dt.value
+
+        if nbr_frames != self.steps:
+            helper.writeWarning(f"Number of frames saved in reference file ({nbr_frames}) does not match the number of required steps ({self.steps})", self.verbose)
+
+        for step in range(self.steps):
+            start_time = time.time_ns()
+            Sofa.Simulation.animate(self.root_node, dt)
+            self.total_run_time += time.time_ns() - start_time
+
+            pbar_simu.update(1)
+
+            # Sample right after animate(): see the comment in write_references()
+            # for why this mirrors the legacy AnimateBeginEvent-based sampling.
+            if step < nbr_frames:
+                for topo_id in range(nbr_topo):
+                    ref_state = numpy_data[topo_id][str(keyframes[step])]
+                    current_state = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+
+                    errors = TopologyRegressionSceneData._compare_topology_states(ref_state, current_state)
+
+                    helper.writeLog(
+                        f"{step} | {self.topology[topo_id].name.value} | errors: {errors}",
+                        self.verbose
+                    )
+
+                    self.error_topology.edges_error[topo_id] += errors["edges"]
+                    self.error_topology.triangle_error[topo_id] += errors["triangles"]
+                    self.error_topology.quad_error[topo_id] += errors["quads"]
+                    self.error_topology.tetra_error[topo_id] += errors["tetrahedra"]
+                    self.error_topology.hexa_error[topo_id] += errors["hexahedra"]
+
+                    self.total_error[topo_id] += sum(errors.values())
+
+                self.nbr_tested_frame += 1
+        pbar_simu.close()
+
+        # Final regression returns value
+        for topo_id in range(nbr_topo):
+            if not np.isfinite(self.total_error[topo_id]):
+                self.regression_failed = True
+                return False
+            if self.total_error[topo_id] > self.epsilon:
+                self.regression_failed = True
+                return False
+
+        return True
+
+
+    def compare_legacy_references(self):
+        pbar_simu = pbh.ProgressBarHandler(total=float(self.steps), disable=self.disable_progress_bar)
+        pbar_simu.set_description("compare_legacy_references: " + self.file_scene_path)
+
+        nbr_topo = len(self.topology)
+
+        # Reference data
+        ref_times = []  # shared timeline
+        ref_values = [] # List[List[dict category -> list[tuple]]]
+
+        self.total_error = [0.0] * nbr_topo
+        self.edges_error = [0.0] * nbr_topo
+        self.triangle_error = [0.0] * nbr_topo
+        self.quad_error = [0.0] * nbr_topo
+        self.tetra_error = [0.0] * nbr_topo
+        self.hexa_error = [0.0] * nbr_topo
+        self.nbr_tested_frame = 0
+        self.regression_failed = False
+
+        if nbr_topo == 0:
+            self.regression_failed = True
+            return False
+
+        # --------------------------------------------------
+        # Load legacy reference files
+        # --------------------------------------------------
+        for topo_id in range(nbr_topo):
+            legacy_filename = (self.file_ref_path + ".reference_" + str(topo_id) + "_"
+                                + self.topology[topo_id].name.value + "_topology.txt.gz")
+            try:
+                times, values = reference_io.read_legacy_topology_reference(legacy_filename)
+            except Exception as e:
+                e.add_note(
+                        f"While reading legacy topology references for container "
+                        f"'{self.topology[topo_id].name.value}'"
+                    )
+                raise
+
+            # Keep timeline from first topology container
+            if topo_id == 0:
+                ref_times = times
+            else:
+                if len(times) != len(ref_times):
+                    raise ValueError(
+                        f"Reference timeline mismatch for file {self.file_scene_path}, "
+                        f"Topology {topo_id}",
+                        self.verbose
+                    )
+
+            ref_values.append(values)
+
+        # --------------------------------------------------
+        # Simulation + comparison
+        # --------------------------------------------------
+        frame_step = 0
+        nbr_frames = len(ref_times)
+        dt = self.root_node.dt.value
+
+        if nbr_frames != self.steps:
+            helper.writeWarning(f"Number of steps saved in reference file ({nbr_frames}) does not match the number of required steps ({self.steps})", self.verbose)
+
+        for step in range(self.steps):
+            Sofa.Simulation.animate(self.root_node, dt)
+            pbar_simu.update(1)
+
+            # Sample right after animate(): see the comment in write_references()
+            # for why this mirrors the legacy AnimateBeginEvent-based sampling.
+            simu_time = dt * step
+
+            # Use tolerance for float comparison
+            if frame_step < nbr_frames and abs(simu_time - ref_times[frame_step]) < dt / 2.0:
+                for topo_id in range(nbr_topo):
+                    ref_state = ref_values[topo_id][frame_step]
+                    current_state = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+
+                    errors = TopologyRegressionSceneData._compare_topology_states(ref_state, current_state)
+
+                    helper.writeLog(
+                        f"    {step} | {self.topology[topo_id].name.value} | errors: {errors}",
+                        self.verbose
+                    )
+
+                    self.error_topology.edges_error[topo_id] += errors["edges"]
+                    self.error_topology.triangle_error[topo_id] += errors["triangles"]
+                    self.error_topology.quad_error[topo_id] += errors["quads"]
+                    self.error_topology.tetra_error[topo_id] += errors["tetrahedra"]
+                    self.error_topology.hexa_error[topo_id] += errors["hexahedra"]
+
+                    self.total_error[topo_id] += sum(errors.values())
+
+                frame_step += 1
+                self.nbr_tested_frame += 1
+
+                # security exit if simulation steps exceed nbr_frames
+                if frame_step == nbr_frames:
+                    break
+        pbar_simu.close()
+
+        # Final regression returns value
+        for topo_id in range(nbr_topo):
+            if not np.isfinite(self.total_error[topo_id]):
+                self.regression_failed = True
+                return False
+            if self.total_error[topo_id] > self.epsilon:
+                self.regression_failed = True
+                return False
+
+        return True

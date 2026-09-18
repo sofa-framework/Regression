@@ -137,3 +137,74 @@ def read_legacy_reference(filename, mechanical_object):
         )
 
     return times, values
+
+# --------------------------------------------------
+# Helper: read the legacy topology reference format
+# --------------------------------------------------
+# Written by the former C++ WriteTopology component, one block per timestep:
+#   T= <time>
+#     Edges= <nbr>
+#   <nbr edges, 2 ints each, space separated, on one line (blank if nbr==0)>
+#     Triangles= <nbr>
+#   <...>
+#     Quads= <nbr>
+#   <...>
+#     Tetrahedra= <nbr>
+#   <...>
+#     Hexahedra= <nbr>
+#   <...>
+_legacy_topology_categories = (
+    ("Edges=", "edges", 2),
+    ("Triangles=", "triangles", 3),
+    ("Quads=", "quads", 4),
+    ("Tetrahedra=", "tetrahedra", 4),
+    ("Hexahedra=", "hexahedra", 8),
+)
+
+
+def read_legacy_topology_reference(filename):
+    times = []
+    values = []
+    current_entry = None
+
+    with gzip.open(filename, "rt") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            if stripped.startswith("T="):
+                if current_entry is not None:
+                    values.append(current_entry)
+                times.append(float(stripped.split("=", 1)[1]))
+                current_entry = {key: [] for _, key, _ in _legacy_topology_categories}
+                continue
+
+            for label, key, arity in _legacy_topology_categories:
+                if not stripped.startswith(label):
+                    continue
+
+                nbr = int(stripped.split("=", 1)[1].strip())
+                if nbr > 0:
+                    raw = next(f).split()
+                    if len(raw) != nbr * arity:
+                        raise ValueError(
+                            f"Legacy topology reference corrupted in {filename}: "
+                            f"expected {nbr * arity} values for '{key}', got {len(raw)}"
+                        )
+                    current_entry[key] = [
+                        tuple(int(v) for v in raw[i * arity:(i + 1) * arity])
+                        for i in range(nbr)
+                    ]
+                break
+
+    if current_entry is not None:
+        values.append(current_entry)
+
+    if len(times) != len(values):
+        raise RuntimeError(
+            f"Legacy topology reference corrupted in {filename}: "
+            f"{len(times)} times vs {len(values)} entries"
+        )
+
+    return times, values
