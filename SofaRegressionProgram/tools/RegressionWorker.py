@@ -218,6 +218,12 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             for task in tasks:
                 result = _run(task)
 
+                ## Check if stderr was written but no exception was thrown, if yes, test should fail
+                stderr = result.get("stderr")
+                if  result['ok'] and stderr:
+                    result['ok'] = False
+                    result["error"] = stderr
+
                 if stream_out is not None:
                     start_steam_out_size = stream_out.tell()
 
@@ -228,10 +234,8 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
                     on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
 
-                if stream_out is not None:
-                    _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
-                    if(stream_out.tell() != start_steam_out_size):
-                        print("", file=stream_out)
+                if stream_out is not None and (stream_out.tell() != start_steam_out_size):
+                    print("", file=stream_out)
 
         else:
             with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
@@ -244,6 +248,12 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                         result = future.result()
                         verbose = task.get("verbose", 1)
 
+                        ## Check if stderr was written but no exception was thrown, if yes, test should fail
+                        stderr = result.get("stderr")
+                        if  result['ok'] and stderr:
+                            result['ok'] = False
+                            result["error"] = stderr
+
                         if stream_out is not None:
                             start_steam_out_size = stream_out.tell()
 
@@ -251,12 +261,10 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                             _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                         if on_result is not None:
                             ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
-                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",err_log_stream = stream_out)
+                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
 
-                        if stream_out is not None:
-                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
-                            if(stream_out.tell() != start_steam_out_size):
-                                print("", file=stream_out)
+                        if stream_out is not None and (stream_out.tell() != start_steam_out_size):
+                            print("", file=stream_out)
 
                 except (KeyboardInterrupt, SystemExit):
                     executor.shutdown(wait=False, cancel_futures=True)
