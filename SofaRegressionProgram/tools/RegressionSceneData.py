@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import time
 import numpy as np
 import pathlib
@@ -116,8 +117,6 @@ class RegressionSceneData:
     def compare_legacy_references(self):
         pass
 
-    def is_replay_available(self):
-        return False
 
 class StateRegressionSceneData(RegressionSceneData):
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
@@ -572,7 +571,8 @@ class StateRegressionSceneData(RegressionSceneData):
 
         return True
 
-    def is_replay_available(self):
+    @staticmethod
+    def is_replay_available():
         return True
 
     def replay_references(self):
@@ -585,3 +585,25 @@ class StateRegressionSceneData(RegressionSceneData):
         Sofa.Gui.GUIManager.SetDimension(1920, 1080)
         Sofa.Gui.GUIManager.MainLoop(self.root_node)
         Sofa.Gui.GUIManager.closeGUI()
+
+class TopologyRegressionSceneData(RegressionSceneData):
+
+    @dataclass
+    class TopologyError():
+        edges_error : list[float]
+        triangle_error : list[float]
+        quad_error : list[float]
+        tetra_error : list[float]
+        hexa_error : list[float]
+
+    def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
+                 epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = 1):
+
+        RegressionSceneData.__init__(self, file_scene_path, file_ref_path, steps, epsilon, meca_in_mapping, dump_number_step, disable_progress_bar, verbose)
+
+        self.topology = []
+        self.error_topology = TopologyRegressionSceneData.TopologyError
+
+    @staticmethod
+    def is_replay_available():
+        return False

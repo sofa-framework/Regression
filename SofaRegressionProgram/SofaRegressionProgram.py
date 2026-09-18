@@ -37,6 +37,7 @@ class RegressionProgram:
         self.legacy_mode = False
         self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
         self.logs_output = logs_output
+        self.reg_type = reg_type
 
         err_logs_stream = None
         if self.logs_output is not None :
@@ -49,7 +50,7 @@ class RegressionProgram:
                         file_path = os.path.join(root, file)
 
                         #Warning lazy or in the end, if not lazy then this breaks
-                        if file.endswith(regression_file_extension) and (reg_type == 'ALL' or RegressionSceneList.RegressionSceneList.RegressionType[reg_type].value in file) :
+                        if file.endswith(regression_file_extension) and (reg_type == 'ALL' or RegressionSceneList.RegressionSceneList.RegressionType[reg_type].value[0] in file) :
                             scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
 
                             if err_logs_stream is not None:
@@ -124,8 +125,11 @@ class RegressionProgram:
         return self.run_all_sets("compare", "Compare All sets")
 
     def replay_references(self, id_scene, id_set=0):
-        scene_list = self.scene_sets[id_set]
-        scene_list.replay_references(id_scene)
+        if(self.scene_sets[id_set].regression_type is not None and self.scene_sets[id_set].regression_type.value[1].is_replay_available()):
+            scene_list = self.scene_sets[id_set]
+            scene_list.replay_references(id_scene)
+        else:
+            raise ValueError(f"Replay is not available for regression type {self.scene_sets[id_set].regression_type}")
 
 
 
