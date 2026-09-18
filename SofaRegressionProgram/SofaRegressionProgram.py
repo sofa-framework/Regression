@@ -281,8 +281,7 @@ if __name__ == '__main__':
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
         writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors), stream = stream_out)
-    if args.write_mode is False:
-        writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
+    writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
 
     if args.output is not None:
         #Print in file
