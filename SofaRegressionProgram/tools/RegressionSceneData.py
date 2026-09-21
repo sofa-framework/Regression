@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import dataclasses
 import time
 import numpy as np
 import pathlib
@@ -590,41 +590,20 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
     # Categories checked by the legacy CompareTopology visitor, in the order
     # they were written to the reference files.
-    topology_categories = ("edges", "triangles", "quads", "tetrahedra", "hexahedra")
+    topology_categories = (("edge", "edges"), ("edge", "triangles"), ("quad", "quads"),
+                           ("tetrahedron", "tetrahedra"), ("hexahedron", "hexahedra"),
+                           ("prism", "prisms"), ("pyramid", "pyramids"))
+    #When the support is complete
+    # "quadratic_edges", "quadratic_triangles", "quadratic_quads", "quadratic_tetrahedra", "quadratic_hexahedra", "quadratic_prisms", "quadratic_pyramids"
 
-    @dataclass
-    class TopologyError():
-        edges_error : list[float]
-        triangle_error : list[float]
-        quad_error : list[float]
-        tetra_error : list[float]
-        hexa_error : list[float]
 
     def __init__(self, file_scene_path: str = None, file_ref_path: str = None, steps = 1000,
                  epsilon = 0.0001, meca_in_mapping = True, dump_number_step = 1, disable_progress_bar = False, verbose = 1):
 
         RegressionSceneData.__init__(self, file_scene_path, file_ref_path, steps, epsilon, meca_in_mapping, dump_number_step, disable_progress_bar, verbose)
 
+        self.error_topology = {elemType[1] : [] for elemType in TopologyRegressionSceneData.topology_categories}
         self.topology = []
-        # Kept as flat, individually JSON-serializable attributes (rather than
-        # inside a TopologyError instance) so they survive the trip through
-        # the isolated worker subprocess: see error_topology below.
-        self.edges_error = []
-        self.triangle_error = []
-        self.quad_error = []
-        self.tetra_error = []
-        self.hexa_error = []
-
-    @property
-    def error_topology(self):
-        """Convenience read-only view combining the per-category error lists
-        into a single TopologyError. Built on demand (never stored) so that
-        it never ends up in self.__dict__, which the worker subprocess
-        serializes to JSON to report results back - a TopologyError instance
-        itself is not JSON-serializable."""
-        return TopologyRegressionSceneData.TopologyError(
-            self.edges_error, self.triangle_error, self.quad_error, self.tetra_error, self.hexa_error
-        )
 
     @staticmethod
     def is_replay_available():
@@ -632,14 +611,14 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
     def log_errors(self, log_prefix='', err_log_stream=None):
         if self.regression_failed:
+            body = ""
+            for topo_type in TopologyRegressionSceneData.topology_categories:
+                if len(self.error_topology[topo_type[1]]) > 0 :
+                    body += f"\n        {topo_type[1].replace('_',' ').capitalize()}: {self.error_topology[topo_type[1]]}"
             helper.writeError(
                                 f"{self.file_scene_path} | Number of key frames compared: {self.nbr_tested_frame} | run time: {self.total_run_time/1e9} seconds. "
                                 f"\n    ### Errors by topology container:"
-                                f"\n        Edges: {self.error_topology.edges_error}"
-                                f"\n        Triangles: {self.error_topology.triangle_error}"
-                                f"\n        Quads: {self.error_topology.quad_error}"
-                                f"\n        Tetrahedra: {self.error_topology.tetra_error}"
-                                f"\n        Hexahedra: {self.error_topology.hexa_error}"
+                                f"{body}"
                                 f"\n    ### Total Error: {self.total_error} > Threshold: {self.epsilon}",
                                 self.verbose,
                                 log_prefix,
@@ -662,12 +641,8 @@ class TopologyRegressionSceneData(RegressionSceneData):
         self.regression_failed = bool(result.get("regression_failed", False))
         self.nbr_tested_frame = int(result.get("nbr_tested_frame", 0))
         self.total_run_time = result.get("total_run_time", 0)
-        self.total_error = result.get("total_error", [])
-        self.edges_error = result.get("edges_error", [])
-        self.triangle_error = result.get("triangle_error", [])
-        self.quad_error = result.get("quad_error", [])
-        self.tetra_error = result.get("tetra_error", [])
-        self.hexa_error = result.get("hexa_error", [])
+        self.error_topology = result.get("error_topology", {})
+
 
 
     def parse_node(self, node, level = 0):
@@ -690,14 +665,7 @@ class TopologyRegressionSceneData(RegressionSceneData):
         """Snapshot of a BaseMeshTopology's element containers, read directly
         through the python bindings (no WriteTopology/ReadTopology component
         added to the scene)."""
-        return {
-            "edges": [tuple(topo.getEdge(i)) for i in range(topo.getNbEdges())],
-            "triangles": [tuple(topo.getTriangle(i)) for i in range(topo.getNbTriangles())],
-            "quads": [tuple(topo.getQuad(i)) for i in range(topo.getNbQuads())],
-            "tetrahedra": [tuple(topo.getTetrahedron(i)) for i in range(topo.getNbTetrahedra())],
-            "hexahedra": [tuple(topo.getHexahedron(i)) for i in range(topo.getNbHexahedra())],
-        }
-
+        return {topo_type[1] : [tuple(topo.__getattribute__(f"get{topo_type[0].capitalize()}")(i)) for i in range(topo.__getattribute__(f"getNb{topo_type[1].capitalize()}")())] for topo_type in TopologyRegressionSceneData.topology_categories}
 
     @staticmethod
     def _compare_topology_states(ref_state, current_state):
@@ -711,20 +679,20 @@ class TopologyRegressionSceneData(RegressionSceneData):
         """
         errors = {}
         for category in TopologyRegressionSceneData.topology_categories:
-            ref_elements = ref_state.get(category, [])
+            ref_elements = ref_state.get(category[1], [])
             ref_count = len(ref_elements)
 
             if ref_count == 0:
-                errors[category] = 0
+                errors[category[1]] = 0
                 continue
 
-            cur_elements = current_state[category]
+            cur_elements = current_state[category[1]]
             cur_count = len(cur_elements)
 
             if ref_count != cur_count:
-                errors[category] = abs(ref_count - cur_count)
+                errors[category[1]] = abs(ref_count - cur_count)
             else:
-                errors[category] = sum(
+                errors[category[1]] = sum(
                     1 for ref_elem, cur_elem in zip(ref_elements, cur_elements)
                     if list(ref_elem) != list(cur_elem)
                 )
@@ -804,11 +772,8 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
         # Outputs init
         self.total_error = [0.0] * nbr_topo
-        self.edges_error = [0.0] * nbr_topo
-        self.triangle_error = [0.0] * nbr_topo
-        self.quad_error = [0.0] * nbr_topo
-        self.tetra_error = [0.0] * nbr_topo
-        self.hexa_error = [0.0] * nbr_topo
+        for topo_type in self.error_topology:
+            self.error_topology[topo_type] = [0.0] * nbr_topo
         self.nbr_tested_frame = 0
         self.regression_failed = False
 
@@ -857,11 +822,8 @@ class TopologyRegressionSceneData(RegressionSceneData):
                         self.verbose
                     )
 
-                    self.error_topology.edges_error[topo_id] += errors["edges"]
-                    self.error_topology.triangle_error[topo_id] += errors["triangles"]
-                    self.error_topology.quad_error[topo_id] += errors["quads"]
-                    self.error_topology.tetra_error[topo_id] += errors["tetrahedra"]
-                    self.error_topology.hexa_error[topo_id] += errors["hexahedra"]
+                    for topo_type in self.error_topology:
+                        self.error_topology[topo_type][topo_id] += errors[topo_type]
 
                     self.total_error[topo_id] += sum(errors.values())
 
@@ -891,11 +853,8 @@ class TopologyRegressionSceneData(RegressionSceneData):
         ref_values = [] # List[List[dict category -> list[tuple]]]
 
         self.total_error = [0.0] * nbr_topo
-        self.edges_error = [0.0] * nbr_topo
-        self.triangle_error = [0.0] * nbr_topo
-        self.quad_error = [0.0] * nbr_topo
-        self.tetra_error = [0.0] * nbr_topo
-        self.hexa_error = [0.0] * nbr_topo
+        for topo_type in self.error_topology:
+            self.error_topology[topo_type] = [0.0] * nbr_topo
         self.nbr_tested_frame = 0
         self.regression_failed = False
 
@@ -962,11 +921,8 @@ class TopologyRegressionSceneData(RegressionSceneData):
                         self.verbose
                     )
 
-                    self.error_topology.edges_error[topo_id] += errors["edges"]
-                    self.error_topology.triangle_error[topo_id] += errors["triangles"]
-                    self.error_topology.quad_error[topo_id] += errors["quads"]
-                    self.error_topology.tetra_error[topo_id] += errors["tetrahedra"]
-                    self.error_topology.hexa_error[topo_id] += errors["hexahedra"]
+                    for topo_type in self.error_topology:
+                        self.error_topology[topo_type][topo_id] += errors[topo_type]
 
                     self.total_error[topo_id] += sum(errors.values())
 

@@ -82,7 +82,7 @@ def read_JSON_reference_file(file_path):
         keyframes = []
         for key in decoded_array:
             keyframes.append(float(key))
-    
+
         return decoded_array, keyframes
 
 # --------------------------------------------------
@@ -109,7 +109,7 @@ def read_legacy_reference(filename, mechanical_object):
             if line.startswith("T="):
                 current_time = float(line.split("=", 1)[1])
                 times.append(current_time)
-         
+
             # Positions
             elif line.startswith("X="):
                 if current_time is None:
