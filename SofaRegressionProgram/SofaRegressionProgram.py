@@ -1,7 +1,9 @@
 import os
+import io
 import argparse
 import sys
 import numpy as np
+from pathlib import Path
 
 if "SOFA_ROOT" not in os.environ:
     print('SOFA_ROOT environment variable has not been detected, quitting.')
@@ -14,18 +16,19 @@ import Sofa
 import SofaRuntime # importing SofaRuntime will add the py3 loader to the scene loaders
 import tools.RegressionSceneList as RegressionSceneList
 import tools.RegressionWorker as RegressionWorker
+from tools.RegressionHelper import writeMessage
 
 regression_file_extension = ".regression-tests"
 
 class RegressionProgram:
-    def __init__(self, input_folder, filter = None, disable_progress_bar = False, verbose = False, nbr_jobs = 1):
+    def __init__(self, input_folders, filter = None, disable_progress_bar = False, verbose = 1, nbr_jobs = 1, logs_output = None):
         """Initialize the RegressionProgram
 
         Args:
-            input_folder (str): Path to the folder containing regression test files.
+            input_folders (list(str)): Paths to folders containing regression test files.
             filter (str): Regex pattern to filter scene files (e.g., '^demo.*.scn$'). If None, no filter is applied. Defaults to None.
             disable_progress_bar (bool, optional): If True, disable progress bars. Defaults to False.
-            verbose (bool, optional): If True, enable verbose output. Defaults to False.
+            verbose (int, optional): If 0 returns only errors and success, 1 display warnings, 2 display everything. Defaults to 1.
             nbr_jobs (int, optional): Number of scenes to write/compare at the same time. 0 means one per logical core. Defaults to 1.
         """
         self.scene_sets = []  # List <RegressionSceneList>
@@ -33,16 +36,35 @@ class RegressionProgram:
         self.verbose = verbose
         self.legacy_mode = False
         self.nbr_jobs = RegressionWorker.resolve_nbr_jobs(nbr_jobs)
+        self.logs_output = logs_output
 
-        for root, dirs, files in os.walk(input_folder):
-            for file in files:
-                if file.endswith(regression_file_extension):
-                    file_path = os.path.join(root, file)
+        err_logs_stream = None
+        if self.logs_output is not None :
+            err_logs_stream = io.StringIO()
+        try:
 
-                    scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
+            for directory in input_folders :
+                for root, dirs, files in os.walk(directory):
+                    for file in files:
+                        if file.endswith(regression_file_extension):
+                            file_path = os.path.join(root, file)
 
-                    scene_list.process_file()
-                    self.scene_sets.append(scene_list)
+                            scene_list = RegressionSceneList.RegressionSceneList(file_path, filter, self.disable_progress_bar, verbose, self.nbr_jobs)
+
+                            if err_logs_stream is not None:
+                                start_steam_out_size = err_logs_stream.tell()
+
+                            scene_list.process_file(err_log_stream = err_logs_stream)
+
+                            if err_logs_stream is not None and start_steam_out_size != err_logs_stream.tell():
+                                print("", file=err_logs_stream)
+
+                            self.scene_sets.append(scene_list)
+        finally:
+            if self.logs_output is not None :
+                with open(Path(self.logs_output) / "parse_errors_logs.txt", 'w', encoding="utf-8") as summary_file:
+                    summary_file.write(err_logs_stream.getvalue())
+
 
     def nbr_error_in_sets(self):
         nbr_errors = 0
@@ -75,9 +97,10 @@ class RegressionProgram:
         return RegressionWorker.run_scene_tasks(
             tasks,
             nbr_jobs=self.nbr_jobs,
-            on_result=lambda task, result: task["scene_list"].apply_result(task, result),
+            on_result=lambda task, result, **kwargs: task["scene_list"].apply_result(task, result, **kwargs),
             description=description,
-            disable_progress_bar=self.disable_progress_bar)
+            disable_progress_bar=self.disable_progress_bar,
+            logs_output=self.logs_output)
 
     def write_sets_references(self, id_set=0):
         scene_list = self.scene_sets[id_set]
@@ -109,22 +132,19 @@ def make_parser():
     parser = argparse.ArgumentParser(
         description='Regression arguments',
         formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--input', 
+    parser.add_argument('--input',
                         dest='input',
                         help=f'The input folder containing {regression_file_extension} files that describe scenes to be'
                              f' processed and compared against a reference for regression detection.',
-                        type=str)
-    
-    parser.add_argument('--output', 
-                        dest='output', 
-                        help="Directory where to export data preprocessed",
+                        action='append',
+                        default=[],
                         type=str)
 
     parser.add_argument('--filter',
                         dest='filter',
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
                         type=str)
-    
+
     parser.add_argument('-j', '--jobs',
                         dest='jobs',
                         help="Number of scenes to process at the same time (each one still runs in its own\n"
@@ -134,10 +154,10 @@ def make_parser():
                         default=1)
 
     parser.add_argument('--replay',
-                        dest='replay', 
+                        dest='replay',
                         help=f"Will launch runSofa on the scene number X (input number) in the input the list of the {regression_file_extension} file given as input and display the scene references aside from the simulation",
                         type=int)
-    
+
     parser.add_argument(
         "--write-references",
         dest="write_mode",
@@ -154,7 +174,8 @@ def make_parser():
         "--verbose",
         dest="verbose",
         help='If set, will display more information',
-        action='store_true'
+        type=int,
+        default = 1
     )
     parser.add_argument(
         "--quiet",
@@ -169,9 +190,18 @@ def make_parser():
         action='store_true'
     )
 
+    parser.add_argument(
+        '--output-logs-errors',
+        dest='output',
+        help="Directory where to export logs errors and summary",
+        type=str
+    )
+
+
     parser.epilog = '''
 Examples:
     python SofaRegressionProgram.py --input ./scenes
+    python SofaRegressionProgram.py --input ./scenes --input ./other/scenes
     python SofaRegressionProgram.py --input ./scenes --filter \"$demo.*.scn\"
     python SofaRegressionProgram.py --input ./scenes --replay 5
     python SofaRegressionProgram.py --input ./scenes --jobs 8
@@ -186,21 +216,28 @@ if __name__ == '__main__':
     parser = make_parser()
     args = parser.parse_args()
 
+    verbose = args.verbose
+    if(args.quiet):
+        verbose = -1
+
     # 2- Process file
-    if args.input is not None:
-        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, args.verbose, args.jobs)
+    if args.input:
+        reg_prog = RegressionProgram(args.input, args.filter, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
     else:
         parser.print_help()
         exit("Error: Argument is required ! Quitting.")
 
+
+
     nbr_scenes = 0
 
     if args.legacy_mode:
-        print("Legacy regression mode activated.")
+        writeMessage("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
 
+
     if reg_prog.nbr_jobs > 1:
-        print(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
+        writeMessage(f"Processing up to {reg_prog.nbr_jobs} scenes at the same time.")
 
 
     if args.replay is not None:
@@ -208,44 +245,38 @@ if __name__ == '__main__':
         reg_prog.replay_references(replayId)
         sys.exit()
 
-    old_fd = os.dup(1)
-    if args.quiet:
-        # Save and redirect
-        sys.stdout.flush()
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, 1)
-        os.close(devnull)
 
     if args.write_mode:
         nbr_scenes = reg_prog.write_all_sets_references()
     else:
         nbr_scenes = reg_prog.compare_all_sets_references()
 
-    if args.quiet:
-        # Restore
-        sys.stdout.flush()
-        os.dup2(old_fd, 1)
-        os.close(old_fd)
-
     np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
-    
+
     nbr_parsing_errors = reg_prog.nbr_parsing_error_in_sets()
 
-    print ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)))
-    print ("### Number of scenes Done:  " + str(nbr_scenes))
+
+    stream_out = io.StringIO()
+
+    writeMessage ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)), stream = stream_out)
+    writeMessage ("### Number of scenes Done:  " + str(nbr_scenes), stream = stream_out)
     if nbr_parsing_errors > 0:
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
-        print ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors))
+        writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors), stream = stream_out)
     if args.write_mode is False:
-        print ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()))
-        reg_prog.log_errors_in_sets()
-        if reg_prog.nbr_error_in_sets() > 0:
-            sys.exit(1) # exit with error(s)
+        writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
 
-    if nbr_parsing_errors > 0:
+    if args.output is not None:
+        #Print in file
+        with open(Path(args.output) / "summary.txt", 'w', encoding="utf-8") as summary_file:
+            summary_file.write(stream_out.getvalue())
+
+    #Print in stdout
+    print(stream_out.getvalue(), end='')
+
+
+    if ( args.write_mode is False and reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
-
-    

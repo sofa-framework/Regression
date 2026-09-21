@@ -37,7 +37,10 @@ import json
 import argparse
 import subprocess
 import tempfile
+import itertools
+import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 
 def _safe_remove(path):
@@ -51,7 +54,7 @@ def _safe_remove(path):
 # Parent side: spawn one child process for one scene
 # --------------------------------------------------
 def run_scene_in_subprocess(scene_data, mode, legacy=False,
-                            disable_progress_bar=False, verbose=False,
+                            disable_progress_bar=False, verbose=1,
                             format="JSON", python_exe=None,
                             capture_output=False):
     """Run a single scene (write or compare) in an isolated child process.
@@ -61,7 +64,7 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         mode (str): "write" to generate references, "compare" to check them.
         legacy (bool): use the legacy reference format (compare only).
         disable_progress_bar (bool): forwarded to the child.
-        verbose (bool): forwarded to the child.
+        verbose (int): forwarded to the child.
         format (str): reference file format ("JSON" or "CSV").
         python_exe (str): interpreter to use for the child (defaults to the
             current one).
@@ -92,12 +95,11 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         "--meca-in-mapping", "1" if scene_data.meca_in_mapping else "0",
         "--dump-number-step", str(scene_data.dump_number_step),
         "--format", format,
+        "--verbose", str(verbose),
         "--result-file", result_path,
     ]
     if legacy:
         cmd.append("--legacy")
-    if verbose:
-        cmd.append("--verbose")
     if disable_progress_bar:
         cmd.append("--disable-progress-bar")
 
@@ -146,25 +148,25 @@ def resolve_nbr_jobs(nbr_jobs):
     return nbr_jobs
 
 
-def _echo_captured_output(header, result):
+def _echo_captured_output(header, result, stream_out = sys.stdout, stream_err = sys.stderr  ):
     """Print in one block the output captured from a child process."""
     out = result.get("stdout")
     err = result.get("stderr")
+
     if not (out or err):
         return
 
-    if out:
-        sys.stdout.write(header + "\n")
-        sys.stdout.write(out if out.endswith("\n") else out + "\n")
-        sys.stdout.flush()
-    if err:
-        sys.stderr.write(header + "\n")
-        sys.stderr.write(err if err.endswith("\n") else err + "\n")
-        sys.stderr.flush()
+    if out and stream_out is not None:
+        print(header, file = stream_out, flush = False)
+        print(out, end = '' if out.endswith("\n") else "\n", file = stream_out, flush = True)
+    if err and stream_err is not None:
+        print(header, file = stream_err, flush = False)
+        print(err, end = '' if err.endswith("\n") else "\n", file = stream_err, flush = True)
+
 
 
 def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
-                    description=None, disable_progress_bar=False):
+                    description=None, disable_progress_bar=False, logs_output=None):
     """Run a list of scenes, up to `nbr_jobs` of them at the same time.
 
     Args:
@@ -184,15 +186,12 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
     Returns:
         int: the number of tasks that were run.
     """
-    from tools import ProgressBarHandler as pbh
 
     nbr_jobs = max(1, resolve_nbr_jobs(nbr_jobs))
     # Never spawn more workers than there is work to do.
     nbr_jobs = min(nbr_jobs, len(tasks)) if tasks else 1
-
-    pbar = pbh.ProgressBarHandler(total=len(tasks), disable=disable_progress_bar)
-    if description is not None:
-        pbar.set_description(description)
+    nbTasks = len(tasks)
+    executed = itertools.count(1)
 
     def _run(task):
         return run_scene_in_subprocess(
@@ -202,18 +201,36 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             # In parallel the per-step progress bars of the children are
             # captured along with their output: they would only produce noise.
             disable_progress_bar=disable_progress_bar or nbr_jobs > 1,
-            verbose=task.get("verbose", False),
+            verbose=int(task.get("verbose", "1")),
             format=format,
-            capture_output=nbr_jobs > 1,
+            capture_output=True,
         )
 
-    try:
+
+    stream_out = None
+    if logs_output is not None:
+        stream_out = io.StringIO()
+
+    try :
         if nbr_jobs == 1:
             for task in tasks:
                 result = _run(task)
+
+                if stream_out is not None:
+                    start_steam_out_size = stream_out.tell()
+
+                verbose = task.get("verbose", 1)
+                if verbose == 2:
+                    _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                 if on_result is not None:
-                    on_result(task, result)
-                pbar.update(1)
+                    ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
+                    on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
+
+                if stream_out is not None:
+                    _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
+                    if(stream_out.tell() != start_steam_out_size):
+                        print("", file=stream_out)
+
         else:
             with ThreadPoolExecutor(max_workers=nbr_jobs) as executor:
                 # The threads only wait on their child process: all the result
@@ -223,16 +240,28 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     for future in as_completed(futures):
                         task = futures[future]
                         result = future.result()
-                        _echo_captured_output(
-                            f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+                        verbose = task.get("verbose", 1)
+
+                        if stream_out is not None:
+                            start_steam_out_size = stream_out.tell()
+
+                        if verbose == 2:
+                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
                         if on_result is not None:
-                            on_result(task, result)
-                        pbar.update(1)
+                            ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
+                            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})",err_log_stream = stream_out)
+
+                        if stream_out is not None:
+                            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result, stream_err = stream_out, stream_out=None)
+                            if(stream_out.tell() != start_steam_out_size):
+                                print("", file=stream_out)
+
                 except (KeyboardInterrupt, SystemExit):
                     executor.shutdown(wait=False, cancel_futures=True)
                     raise
     finally:
-        pbar.close()
+        with open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8") as error_logs_file:
+            error_logs_file.write(stream_out.getvalue())
 
     return len(tasks)
 
@@ -252,7 +281,7 @@ def _make_worker_parser():
     parser.add_argument("--format", default="JSON")
     parser.add_argument("--result-file", dest="result_file", required=True)
     parser.add_argument("--legacy", action="store_true")
-    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--verbose", default=1, type=int)
     parser.add_argument("--disable-progress-bar", dest="disable_progress_bar", action="store_true")
     return parser
 
