@@ -23,7 +23,7 @@ def writeMessage(message, stream: TextIO = sys.stdout):
 def writeError(message, verbose, prefix='', err_log_stream = None):
     complete_message = f"{prefix}{TermColor.RED}{TermTypeStrings.ERROR} {TermColor.RESET}{message}"
     if(verbose >= 0):
-        writeMessage(complete_message)
+        writeMessage(complete_message, stream = sys.stderr)
     if(err_log_stream is not None):
         writeMessage(complete_message, stream = err_log_stream)
 
