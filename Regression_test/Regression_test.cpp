@@ -29,7 +29,9 @@ std::string BaseRegression_test::getTestName(const ::testing::TestParamInfo<Regr
     std::string name = path.substr(pos);
     std::replace(name.begin(), name.end(), '.', '_');
 
-    return name;
+    const auto hash = std::hash<std::string>{}(path);
+
+    return name + "_" + std::to_string(hash);
 }
 
 

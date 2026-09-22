@@ -5,3 +5,4 @@ cmake_minimum_required(VERSION 3.12)
 find_package(Sofa.Config) # Load SofaMacros
 
 sofa_add_subdirectory(application Regression_test Regression_test)
+sofa_add_subdirectory(application SofaRegressionProgram SofaRegressionProgram)

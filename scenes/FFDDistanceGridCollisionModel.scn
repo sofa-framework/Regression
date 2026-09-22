@@ -23,7 +23,7 @@
         <BoxROI name="box1" box="-2.5 0 -2.5 7.5 3 2" />
         <FixedConstraint indices="@box1.indices"/>
         <HexahedronFEMForceField poissonRatio="0" youngModulus="7000"/>
-        <FFDDistanceGrid fileFFDDistanceGrid="mesh/liver-smooth.obj" scale="1.0" usePoints="0" proximity="0.1" contactStiffness="500.0" contactFriction="0.0" />
+        <FFDDistanceGrid fileFFDDistanceGrid="mesh/liver-smooth.obj" scale="1.0" usePoints="0" contactDistance="0.1" contactStiffness="500.0" contactFriction="0.0" />
         <Node name="Visu">
             <OglModel name="Visual" fileMesh="mesh/liver-smooth.obj" color="red" translation="0 0 0" />
             <BarycentricMapping input="@.." output="@Visual" />
