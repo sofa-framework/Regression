@@ -249,6 +249,8 @@ if __name__ == '__main__':
     nbr_scenes = 0
 
     if args.legacy_mode:
+        if(args.write_mode):
+            exit("Error: Cannot write legacy references, to do so run the original Regression_test binary")
         writeMessage("Legacy regression mode activated.")
         reg_prog.legacy_mode = True
 
@@ -281,8 +283,7 @@ if __name__ == '__main__':
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
         writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors), stream = stream_out)
-    if args.write_mode is False:
-        writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
+    writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
 
     if args.output is not None:
         #Print in file
@@ -293,7 +294,7 @@ if __name__ == '__main__':
     print(stream_out.getvalue(), end='')
 
 
-    if ( args.write_mode is False and reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
+    if ( reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
