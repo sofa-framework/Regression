@@ -730,13 +730,7 @@ class TopologyRegressionSceneData(RegressionSceneData):
         nbr_topo = len(self.topology)
         numpy_data = [dict() for _ in range(nbr_topo)] # List<map>
 
-        # The legacy WriteTopology component listens to AnimateBeginEvent, the
-        # same event used by topology-mutating components (e.g.
-        # TopologicalChangeProcessor). Since those are dispatched first, by
-        # the time WriteTopology records the topology for time step*dt, any
-        # change scheduled at that same time has already been applied. We
-        # reproduce this by sampling right after the animate() call that
-        # advances the simulation to step*dt, rather than before it.
+        # Store the topology structure at each time step to catch potential topological changes during the simulation
         for step in range(self.steps):
             Sofa.Simulation.animate(self.root_node, dt)
             pbar_simu.update(1)

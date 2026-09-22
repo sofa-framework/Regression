@@ -144,15 +144,15 @@ def read_legacy_reference(filename, mechanical_object):
 # Written by the former C++ WriteTopology component, one block per timestep:
 #   T= <time>
 #     Edges= <nbr>
-#   <nbr edges, 2 ints each, space separated, on one line (blank if nbr==0)>
+#   <raw edges list, 2 ints each, space separated, on one line (blank if nbr==0)>
 #     Triangles= <nbr>
-#   <...>
+#   <raw triangles list, 3 ints each, space separated, on one line (blank if nbr==0)>
 #     Quads= <nbr>
-#   <...>
+#   <raw quads list, 4 ints each, space separated, on one line (blank if nbr==0)>
 #     Tetrahedra= <nbr>
-#   <...>
+#   <raw tetrahedra list, 4 ints each, space separated, on one line (blank if nbr==0)>
 #     Hexahedra= <nbr>
-#   <...>
+#   <raw hexahedra list, 8 ints each, space separated, on one line (blank if nbr==0)>
 _legacy_topology_categories = (
     ("Edges=", "edges", 2),
     ("Triangles=", "triangles", 3),
