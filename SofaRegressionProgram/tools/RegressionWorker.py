@@ -53,7 +53,7 @@ def _safe_remove(path):
 # --------------------------------------------------
 # Parent side: spawn one child process for one scene
 # --------------------------------------------------
-def run_scene_in_subprocess(scene_data, mode, legacy=False,
+def run_scene_in_subprocess(scene_data, mode, scene_list = None, legacy=False,
                             disable_progress_bar=False, verbose=1,
                             format="JSON", python_exe=None,
                             capture_output=False):
@@ -92,6 +92,7 @@ def run_scene_in_subprocess(scene_data, mode, legacy=False,
         "--ref", str(scene_data.file_ref_path),
         "--steps", str(scene_data.steps),
         "--epsilon", repr(scene_data.epsilon),
+        "--regression-type", scene_list.regression_type.name,
         "--meca-in-mapping", "1" if scene_data.meca_in_mapping else "0",
         "--dump-number-step", str(scene_data.dump_number_step),
         "--format", format,
@@ -198,6 +199,7 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
             task["scene_data"],
             mode=task["mode"],
             legacy=task.get("legacy", False),
+            scene_list= task["scene_list"],
             # In parallel the per-step progress bars of the children are
             # captured along with their output: they would only produce noise.
             disable_progress_bar=disable_progress_bar or nbr_jobs > 1,
@@ -260,8 +262,9 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     executor.shutdown(wait=False, cancel_futures=True)
                     raise
     finally:
-        with open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8") as error_logs_file:
-            error_logs_file.write(stream_out.getvalue())
+        if logs_output is not None:
+            with open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8") as error_logs_file:
+                error_logs_file.write(stream_out.getvalue())
 
     return len(tasks)
 
@@ -276,6 +279,7 @@ def _make_worker_parser():
     parser.add_argument("--ref", required=True)
     parser.add_argument("--steps", type=int, required=True)
     parser.add_argument("--epsilon", type=float, required=True)
+    parser.add_argument("--regression-type", dest="regression_type", type=str, required=True)
     parser.add_argument("--meca-in-mapping", dest="meca_in_mapping", choices=["0", "1"], required=True)
     parser.add_argument("--dump-number-step", dest="dump_number_step", type=int, required=True)
     parser.add_argument("--format", default="JSON")
@@ -307,8 +311,13 @@ def _worker_main():
         import Sofa
         import SofaRuntime  # noqa: F401  (registers the py3 scene loader)
         import tools.RegressionSceneData as RegressionSceneData
+        import tools.RegressionSceneList as RegressionSceneList
+        import numpy as np
 
-        scene = RegressionSceneData.RegressionSceneData(
+        np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
+
+
+        scene = RegressionSceneList.RegressionSceneList.RegressionType[args.regression_type].value[1](
             file_scene_path=args.scene,
             file_ref_path=args.ref,
             steps=args.steps,
@@ -333,13 +342,15 @@ def _worker_main():
             result = {
                 "ok": True,
                 "result": bool(passed),
-                "regression_failed": bool(scene.regression_failed),
-                "nbr_tested_frame": int(scene.nbr_tested_frame),
-                "total_run_time": int(scene.total_run_time),
-                "error_by_dof": [float(v) for v in scene.error_by_dof],
-                "total_error": [float(v) for v in scene.total_error],
                 "error": None,
+                **scene.__dict__
             }
+            ## Remove data that break json. Not every regression type carries
+            ## every one of these attributes (e.g. TopologyRegressionSceneData
+            ## has no "meca_objs"), so remove them only if present.
+            for key in ("meca_objs", "root_node", "topology"):
+                result.pop(key, None)
+
     except Exception as e:
         import traceback
         result = {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
