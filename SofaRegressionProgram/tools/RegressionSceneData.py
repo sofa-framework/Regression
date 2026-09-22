@@ -661,14 +661,14 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
 
     @staticmethod
-    def _get_topology_state(topo):
+    def _get_topology_structure(topo):
         """Snapshot of a BaseMeshTopology's element containers, read directly
         through the python bindings (no WriteTopology/ReadTopology component
         added to the scene)."""
         return {topo_type[1] : [tuple(topo.__getattribute__(f"get{topo_type[0].capitalize()}")(i)) for i in range(topo.__getattribute__(f"getNb{topo_type[1].capitalize()}")())] for topo_type in TopologyRegressionSceneData.topology_categories}
 
     @staticmethod
-    def _compare_topology_states(ref_state, current_state):
+    def _compare_topology_structure(ref_state, current_state):
         """Reproduce CompareTopology::processCompareTopology: for each
         category, a count mismatch adds the absolute difference in count as
         the error; otherwise every element is compared and each mismatching
@@ -737,7 +737,7 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
             t = dt * step
             for topo_id in range(nbr_topo):
-                numpy_data[topo_id][t] = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+                numpy_data[topo_id][t] = TopologyRegressionSceneData._get_topology_structure(self.topology[topo_id])
 
         pbar_simu.close()
 
@@ -807,9 +807,9 @@ class TopologyRegressionSceneData(RegressionSceneData):
             if step < nbr_frames:
                 for topo_id in range(nbr_topo):
                     ref_state = numpy_data[topo_id][str(keyframes[step])]
-                    current_state = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+                    current_state = TopologyRegressionSceneData._get_topology_structure(self.topology[topo_id])
 
-                    errors = TopologyRegressionSceneData._compare_topology_states(ref_state, current_state)
+                    errors = TopologyRegressionSceneData._compare_topology_structure(ref_state, current_state)
 
                     helper.writeLog(
                         f"{step} | {self.topology[topo_id].name.value} | errors: {errors}",
@@ -906,9 +906,9 @@ class TopologyRegressionSceneData(RegressionSceneData):
             if frame_step < nbr_frames and abs(simu_time - ref_times[frame_step]) < dt / 2.0:
                 for topo_id in range(nbr_topo):
                     ref_state = ref_values[topo_id][frame_step]
-                    current_state = TopologyRegressionSceneData._get_topology_state(self.topology[topo_id])
+                    current_state = TopologyRegressionSceneData._get_topology_structure(self.topology[topo_id])
 
-                    errors = TopologyRegressionSceneData._compare_topology_states(ref_state, current_state)
+                    errors = TopologyRegressionSceneData._compare_topology_structure(ref_state, current_state)
 
                     helper.writeLog(
                         f"    {step} | {self.topology[topo_id].name.value} | errors: {errors}",
