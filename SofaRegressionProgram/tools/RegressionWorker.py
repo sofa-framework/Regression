@@ -256,7 +256,7 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
                     raise
     finally:
         if logs_output is not None:
-            with open(Path(logs_output) / "run_errors_logs.txt", 'w', encoding="utf-8") as error_logs_file:
+            with open(Path(logs_output) / "regression_errors.txt", 'w', encoding="utf-8") as error_logs_file:
                 error_logs_file.write(stream_out.getvalue())
 
     return len(tasks)

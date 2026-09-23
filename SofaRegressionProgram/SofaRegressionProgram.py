@@ -69,7 +69,7 @@ class RegressionProgram:
 
         finally:
             if self.logs_output is not None :
-                with open(Path(self.logs_output) / "parse_errors_logs.txt", 'w', encoding="utf-8") as summary_file:
+                with open(Path(self.logs_output) / "parse_errors.txt", 'w', encoding="utf-8") as summary_file:
                     summary_file.write(err_logs_stream.getvalue())
 
 
