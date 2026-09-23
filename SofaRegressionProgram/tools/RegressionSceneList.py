@@ -38,6 +38,7 @@ class RegressionSceneList:
         self.file_dir = os.path.dirname(file_path)
         self.scenes_data_sets = [] # List<RegressionSceneData>
         self.nbr_errors = 0
+        self.nbr_crash = 0
         self.nbr_parsing_errors = 0 # number of lines of the list file that could not be used
         self.ref_dir_path = None
         self.disable_progress_bar = disable_progress_bar
@@ -54,6 +55,9 @@ class RegressionSceneList:
 
     def get_nbr_errors(self):
         return self.nbr_errors
+
+    def get_nbr_crash(self):
+        return self.nbr_crash
 
     def get_nbr_parsing_errors(self):
         return self.nbr_parsing_errors
@@ -262,14 +266,14 @@ class RegressionSceneList:
         if task["mode"] == "write":
             if not result.get("ok", False):
                 helper.writeError(f"While writing references for {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, err_log_stream)
-                self.nbr_errors += 1
+                self.nbr_crash += 1
             else:
                 helper.writeSuccess(f"Reference {scene.file_ref_path} written successfully !", self.verbose, log_prefix)
             return
 
         if not result.get("ok", False):
             # Hard failure (scene could not be loaded / worker crashed).
-            self.nbr_errors = self.nbr_errors + 1
+            self.nbr_crash += 1
             helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, err_log_stream)
             return
 

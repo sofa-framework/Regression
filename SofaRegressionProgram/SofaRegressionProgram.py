@@ -5,6 +5,8 @@ import sys
 import numpy as np
 from pathlib import Path
 
+import time
+
 if "SOFA_ROOT" not in os.environ:
     print('SOFA_ROOT environment variable has not been detected, quitting.')
     exit(1)
@@ -77,6 +79,12 @@ class RegressionProgram:
             nbr_errors = nbr_errors + scene_list.get_nbr_errors()
         return nbr_errors
 
+    def nbr_crash_in_sets(self):
+        nbr_errors = 0
+        for scene_list in self.scene_sets:
+            nbr_errors = nbr_errors + scene_list.get_nbr_crash()
+        return nbr_errors
+
     def nbr_parsing_error_in_sets(self):
         nbr_errors = 0
         for scene_list in self.scene_sets:
@@ -131,6 +139,13 @@ class RegressionProgram:
         else:
             raise ValueError(f"Replay is not available for regression type {self.scene_sets[id_set].regression_type}")
 
+    def write_summary(self, buffer,nbr_scenes, duration_seconds):
+        writeMessage ("test_suite=" + str(len(self.scene_sets)), buffer)
+        writeMessage ("test_total=" + str(nbr_scenes), buffer)
+        writeMessage ("parsing_error=" + str(self.nbr_parsing_error_in_sets()), buffer)
+        writeMessage ("failures=" + str(self.nbr_error_in_sets()), buffer)
+        writeMessage ("crashes=" + str(self.nbr_crash_in_sets()), buffer)
+        writeMessage (f"duration={duration_seconds:.3f}", buffer)
 
 
 def make_parser():
@@ -229,6 +244,8 @@ Examples:
 
 
 if __name__ == '__main__':
+    start = time.time()
+
     # 1- Parse arguments to get folder path
     parser = make_parser()
     args = parser.parse_args()
@@ -273,31 +290,28 @@ if __name__ == '__main__':
     else:
         nbr_scenes = reg_prog.compare_all_sets_references()
 
+    duration_seconds=time.time() - start
+
     np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
 
-    nbr_parsing_errors = reg_prog.nbr_parsing_error_in_sets()
-
-
-    stream_out = io.StringIO()
-
-    writeMessage ("### Number of sets Done:  " + str(len(reg_prog.scene_sets)), stream = stream_out)
-    writeMessage ("### Number of scenes Done:  " + str(nbr_scenes), stream = stream_out)
-    if nbr_parsing_errors > 0:
+    writeMessage (f"### Number of sets Done: {len(reg_prog.scene_sets)}")
+    writeMessage (f"### Number of scenes Done: {nbr_scenes}")
+    if reg_prog.nbr_parsing_error_in_sets() > 0:
         # Those scenes have not been processed at all: report them as an error
         # so that an invalid list file cannot silently reduce the test coverage.
-        writeMessage ("### Number of invalid lines skipped:  " + str(nbr_parsing_errors), stream = stream_out)
-    writeMessage ("### Number of scenes failed:  " + str(reg_prog.nbr_error_in_sets()), stream = stream_out)
+        writeMessage (f"### Number of invalid lines skipped: {reg_prog.nbr_parsing_error_in_sets()}")
+    writeMessage (f"### Number of scenes failed: {reg_prog.nbr_error_in_sets()}")
+    writeMessage (f"### Number of scenes crashed: {reg_prog.nbr_crash_in_sets()}")
+    writeMessage (f"### Regression took : {duration_seconds:.3f} s")
 
     if args.output is not None:
         #Print in file
         with open(Path(args.output) / "summary.txt", 'w', encoding="utf-8") as summary_file:
-            summary_file.write(stream_out.getvalue())
-
-    #Print in stdout
-    print(stream_out.getvalue(), end='')
+            reg_prog.write_summary(summary_file, nbr_scenes, duration_seconds)
 
 
-    if ( reg_prog.nbr_error_in_sets() > 0) or nbr_parsing_errors > 0:
+
+    if ( reg_prog.nbr_error_in_sets() > 0) or reg_prog.nbr_parsing_error_in_sets()> 0:
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
