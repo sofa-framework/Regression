@@ -237,6 +237,9 @@ if __name__ == '__main__':
     if(args.quiet):
         verbose = -1
 
+    if(args.output):
+        Path(args.output).mkdir(parents=True, exist_ok=True)
+
     # 2- Process file
     if args.input:
         reg_prog = RegressionProgram(args.input, args.filter, args.reg_type, args.progress_bar_is_disabled, verbose, args.jobs, logs_output = args.output)
