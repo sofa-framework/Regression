@@ -292,7 +292,8 @@ if __name__ == '__main__':
 
     duration_seconds=time.time() - start
 
-    np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
+    if(np.version.version > '2.0.0')
+        np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
 
     writeMessage (f"### Number of sets Done: {len(reg_prog.scene_sets)}")
     writeMessage (f"### Number of scenes Done: {nbr_scenes}")
