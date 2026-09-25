@@ -307,7 +307,8 @@ def _worker_main():
         import tools.RegressionSceneList as RegressionSceneList
         import numpy as np
 
-        np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
+        if(np.version.version > '2.0.0'):
+            np.set_printoptions(legacy='1.25') # revert printing floating-point type in numpy (concretely remove np.array when displaying a list of np.float)
 
 
         scene = RegressionSceneList.RegressionSceneList.RegressionType[args.regression_type].value[1](
