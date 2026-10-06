@@ -1,4 +1,6 @@
 import gzip
+import zlib
+import re
 import csv
 import json
 from json import JSONEncoder
@@ -86,57 +88,69 @@ def read_JSON_reference_file(file_path):
         return decoded_array, keyframes
 
 # --------------------------------------------------
+# Helpers mirroring the C++ legacy readers (gzgets + istream >> double)
+# --------------------------------------------------
+def _read_gz_lines_tolerant(filename):
+    """Return the lines of a gzip file, keeping whatever can be decompressed
+    when the stream is truncated (zlib's gzgets does the same: it just returns
+    what it could read instead of failing)."""
+    with open(filename, "rb") as f:
+        raw = f.read()
+    d = zlib.decompressobj(zlib.MAX_WBITS | 16)
+    try:
+        data = d.decompress(raw)
+    except zlib.error:
+        data = b""
+    return data.decode("utf-8", errors="replace").split("\n")
+
+
+_cpp_double_re = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
+
+
+def parse_cpp_doubles(tokens):
+    """Convert tokens like `while (stream >> value)` would: stop at the first
+    token that is not a plain number (nan, inf, -nan(ind), ...)."""
+    values = []
+    for tok in tokens:
+        if not _cpp_double_re.match(tok):
+            break
+        values.append(float(tok))
+    return np.asarray(values, dtype=float)
+
+
+def round_like_cpp_ostream(values):
+    """C++ writes the current state with the default ostream precision (6
+    significant digits) before parsing it back for the comparison."""
+    return np.asarray([float("%.6g" % v) if np.isfinite(v) else v for v in values], dtype=float)
+
+
+# --------------------------------------------------
 # Helper: read the legacy state reference format
 # --------------------------------------------------
-def read_legacy_reference(filename, mechanical_object):
-    ref_data = []
-    times = []
-    values = []
+def read_legacy_reference(filename):
+    """Read a legacy (C++ WriteState) state reference file.
 
-    # Infer layout from MechanicalObject
-    n_points, dof_per_point = mechanical_object.position.value.shape
-    expected_size = n_points * dof_per_point
+    Returns a list of frames, each one a dict {"time": float, "X": flat ndarray
+    or None, "V": flat ndarray or None}. No reshaping is done: the legacy
+    comparison works on the flat list of scalars, exactly like
+    MechanicalObject::compareVec.
+    """
+    frames = []
 
+    for line in _read_gz_lines_tolerant(filename):
+        line = line.strip()
+        if not line:
+            continue
 
-    with gzip.open(filename, "rt") as f:
-        for line in f:
-            line = line.strip()
+        if line.startswith("T="):
+            frames.append({"time": float(line.split("=", 1)[1]), "X": None, "V": None})
+        elif line.startswith("X=") or line.startswith("V="):
+            if not frames:
+                raise RuntimeError(f"{line[:2]} found before T in {filename}")
+            key = line[0]
+            frames[-1][key] = parse_cpp_doubles(line.split("=", 1)[1].split())
 
-            if not line:
-                continue
-
-            # Time marker
-            if line.startswith("T="):
-                current_time = float(line.split("=", 1)[1])
-                times.append(current_time)
-
-            # Positions
-            elif line.startswith("X="):
-                if current_time is None:
-                    raise RuntimeError(f"X found before T in {filename}")
-
-                raw = line.split("=", 1)[1].strip().split()
-                flat = np.asarray(raw, dtype=float)
-
-                if flat.size != expected_size:
-                    raise ValueError(
-                        f"Legacy reference size mismatch in {filename}: "
-                        f"expected {expected_size}, got {flat.size}\n"
-                    )
-
-                values.append(flat.reshape((n_points, dof_per_point)))
-
-            # Velocity (ignored)
-            elif line.startswith("V="):
-                continue
-
-    if len(times) != len(values):
-        raise RuntimeError(
-            f"Legacy reference corrupted in {filename}: "
-            f"{len(times)} times vs {len(values)} X blocks"
-        )
-
-    return times, values
+    return frames
 
 # --------------------------------------------------
 # Helper: read the legacy topology reference format
@@ -167,36 +181,38 @@ def read_legacy_topology_reference(filename):
     values = []
     current_entry = None
 
-    with gzip.open(filename, "rt") as f:
-        for line in f:
-            stripped = line.strip()
-            if not stripped:
+    lines = iter(_read_gz_lines_tolerant(filename))
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if stripped.startswith("T="):
+            if current_entry is not None:
+                values.append(current_entry)
+            times.append(float(stripped.split("=", 1)[1]))
+            current_entry = {key: [] for _, key, _ in _legacy_topology_categories}
+            continue
+
+        for label, key, arity in _legacy_topology_categories:
+            if not stripped.startswith(label):
                 continue
 
-            if stripped.startswith("T="):
-                if current_entry is not None:
-                    values.append(current_entry)
-                times.append(float(stripped.split("=", 1)[1]))
-                current_entry = {key: [] for _, key, _ in _legacy_topology_categories}
-                continue
-
-            for label, key, arity in _legacy_topology_categories:
-                if not stripped.startswith(label):
-                    continue
-
-                nbr = int(stripped.split("=", 1)[1].strip())
-                if nbr > 0:
-                    raw = next(f).split()
-                    if len(raw) != nbr * arity:
-                        raise ValueError(
-                            f"Legacy topology reference corrupted in {filename}: "
-                            f"expected {nbr * arity} values for '{key}', got {len(raw)}"
-                        )
-                    current_entry[key] = [
-                        tuple(int(v) for v in raw[i * arity:(i + 1) * arity])
-                        for i in range(nbr)
-                    ]
-                break
+            nbr = int(stripped.split("=", 1)[1].strip())
+            if nbr > 0:
+                raw = next(lines, "").split()
+                if len(raw) != nbr * arity:
+                    # truncated file (last block cut): ignore this incomplete block
+                    # like the C++ reader that would stop at the end of the stream
+                    if current_entry is not None:
+                        times.pop()
+                        current_entry = None
+                    break
+                current_entry[key] = [
+                    tuple(int(v) for v in raw[i * arity:(i + 1) * arity])
+                    for i in range(nbr)
+                ]
+            break
 
     if current_entry is not None:
         values.append(current_entry)

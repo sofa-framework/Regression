@@ -275,6 +275,8 @@ class RegressionSceneList:
             # Hard failure (scene could not be loaded / worker crashed).
             self.nbr_crash += 1
             helper.writeError(f"While trying to compare {scene.file_scene_path}: {result.get('error')}", self.verbose, log_prefix, err_log_stream)
+            if result.get("traceback"):
+                helper.writeError(result["traceback"], self.verbose, log_prefix, err_log_stream)
             return
 
         # Bring the worker's outcome back so log_errors() reports it as usual.

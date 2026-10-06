@@ -444,130 +444,101 @@ class StateRegressionSceneData(RegressionSceneData):
 
 
     def compare_legacy_references(self):
+        """Compare against references written by the C++ WriteState, the same way
+        the C++ Regression_test does (CompareState + CompareStateResult):
+
+        - at the beginning of each of the `steps` animation steps, the latest
+          reference frame with T <= current time + 0.001 * dt is compared (if
+          there is a new one since the previous step);
+        - for the positions (X) and the velocities (V) separately, the error is
+          the mean absolute difference over the scalars of the state;
+        - the total error accumulates this error, the error by dof accumulates
+          this error divided by the number of dofs;
+        - the error by dof is averaged over the compared states and must not
+          exceed epsilon.
+        """
         pbar_simu = pbh.ProgressBarHandler(total=float(self.steps), disable=self.disable_progress_bar)
         pbar_simu.set_description("compare_legacy_references: " + self.file_scene_path)
 
         nbr_meca = len(self.meca_objs)
 
-        times = []
-
-        # Reference data
-        ref_times = []          # shared timeline
-        ref_values = []         # List[List[np.ndarray]]
-
-        self.total_error = []
-        self.error_by_dof = []
+        self.total_error = [0.0] * nbr_meca
+        self.error_by_dof = [0.0] * nbr_meca
         self.nbr_tested_frame = 0
         self.regression_failed = False
 
         # --------------------------------------------------
         # Load legacy reference files
         # --------------------------------------------------
+        ref_frames = []
         for meca_id in range(nbr_meca):
+            filename = self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz"
             try:
-                times, values = reference_io.read_legacy_reference(self.file_ref_path + ".reference_" + str(meca_id) + "_" + self.meca_objs[meca_id].name.value + "_mstate" + ".txt.gz", self.meca_objs[meca_id])
+                ref_frames.append(reference_io.read_legacy_reference(filename))
             except Exception as e:
-                e.add_note(
-                        f"While reading legacy references for MechanicalObject "
-                        f"'{self.meca_objs[meca_id].name.value}'"
-                    )
-
-            # Keep timeline from first MechanicalObject
-            if meca_id == 0:
-                ref_times = times
-            else:
-                if len(times) != len(ref_times):
-                    raise ValueError(
-                        f"Reference timeline mismatch for file {self.file_scene_path}, "
-                        f"MechanicalObject {meca_id}",
-                        self.verbose
-                    )
-
-            ref_values.append(values)
-            self.total_error.append(0.0)
-            self.error_by_dof.append(0.0)
-
-        helper.writeLog(f"compare_legacy_references: ref_values[0][0] shape: {ref_values[0][0].shape}", self.verbose)
+                e.add_note(f"While reading legacy references for MechanicalObject "
+                           f"'{self.meca_objs[meca_id].name.value}' ({filename})")
+                raise
 
         # --------------------------------------------------
         # Simulation + comparison
         # --------------------------------------------------
-
-        frame_step = 0
-        nbr_frames = len(ref_times)
         dt = self.root_node.dt.value
-
-        if nbr_frames != self.steps:
-            helper.writeWarning(f"Number of steps saved in reference file ({nbr_frames}) does not match the number of required steps ({self.steps})", self.verbose)
+        next_frame = [0] * nbr_meca
 
         helper.writeLog(f"Running {self.steps} simulation steps...", self.verbose)
 
-        for step in range(0, self.steps + 1):
-            simu_time = dt * step
+        for step in range(self.steps):
+            time = self.root_node.time.value + dt * 0.001
+            compared = False
 
-            # Use tolerance for float comparison
-            if frame_step < nbr_frames and abs(simu_time - ref_times[frame_step]) < dt / 2.0:
-                for meca_id in range(nbr_meca):
-                    meca_dofs = np.copy(self.meca_objs[meca_id].position.value)
-                    data_ref = ref_values[meca_id][frame_step]
+            for meca_id in range(nbr_meca):
+                frames = ref_frames[meca_id]
+                last = None
+                while next_frame[meca_id] < len(frames) and frames[next_frame[meca_id]]["time"] <= time:
+                    last = frames[next_frame[meca_id]]
+                    next_frame[meca_id] += 1
+                if last is None:
+                    continue
+                compared = True
 
-                    if meca_dofs.shape != data_ref.shape:
-                        raise ValueError(
-                            f"Shape mismatch for file {self.file_scene_path}, "
-                            f"MechanicalObject {meca_id}: "
-                            f"reference {data_ref.shape} vs current {meca_dofs.shape}",
-                            self.verbose
-                        )
+                meca = self.meca_objs[meca_id]
+                n_dofs = float(len(meca.position.value))
 
-                    data_diff = data_ref - meca_dofs
+                for key, current in (("X", meca.position.value), ("V", meca.velocity.value)):
+                    ref = last[key]
+                    if ref is None:
+                        continue
+                    # C++ prints the current state with the default ostream precision
+                    # (6 significant digits) and stops reading at the first non-number
+                    cur = np.asarray(current, dtype=float).ravel()
+                    finite = np.isfinite(cur)
+                    if not finite.all():
+                        cur = cur[:int(np.argmin(finite))]
+                    cur = reference_io.round_like_cpp_ostream(cur)
+                    count = min(ref.size, cur.size)
+                    if count == 0:
+                        continue
+                    error = float(np.sum(np.abs(ref[:count] - cur[:count]))) / count
 
-                    # Compute total distance between the 2 sets
-                    full_dist = np.linalg.norm(data_diff)
-                    error_by_dof = full_dist / float(data_diff.size)
+                    self.total_error[meca_id] += error
+                    if n_dofs != 0.0:
+                        self.error_by_dof[meca_id] += error / n_dofs
 
-                    helper.writeLog(
-                        f"    {step} | {self.meca_objs[meca_id].name.value} | "
-                        f"full_dist: {full_dist} | "
-                        f"error_by_dof: {error_by_dof} | "
-                        f"nbrDofs: {data_ref.size}",
-                        self.verbose
-                    )
-
-                    self.total_error[meca_id] += full_dist
-                    self.error_by_dof[meca_id] += error_by_dof
-
-                frame_step += 1
+            if compared:
                 self.nbr_tested_frame += 1
 
-                # security exit if simulation steps exceed nbr_frames
-                if frame_step == nbr_frames:
-                    break
-
             Sofa.Simulation.animate(self.root_node, dt)
-
             pbar_simu.update(1)
         pbar_simu.close()
 
-        # Final regression returns value
         if nbr_meca == 0:
             self.regression_failed = True
             return False
 
-        # use the same way of computing errors as legacy mode
-        mean_total_error = 0.0
-        mean_error_by_dof = 0.0
-        for meca_id in range(nbr_meca):
-            mean_total_error += self.total_error[meca_id]
-            mean_error_by_dof += self.error_by_dof[meca_id]
+        mean_error_by_dof = sum(self.error_by_dof) / float(nbr_meca)
 
-        mean_total_error = mean_total_error / float(nbr_meca)
-        mean_error_by_dof = mean_error_by_dof / float(nbr_meca)
-
-        if not np.isfinite(mean_error_by_dof):
-            self.regression_failed = True
-            return False
-
-        if mean_error_by_dof > self.epsilon:
+        if not np.isfinite(mean_error_by_dof) or mean_error_by_dof > self.epsilon:
             self.regression_failed = True
             return False
 
@@ -592,7 +563,7 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
     # Categories checked by the legacy CompareTopology visitor, in the order
     # they were written to the reference files.
-    topology_categories = (("edge", "edges"), ("edge", "triangles"), ("quad", "quads"),
+    topology_categories = (("edge", "edges"), ("triangle", "triangles"), ("quad", "quads"),
                            ("tetrahedron", "tetrahedra"), ("hexahedron", "hexahedra"),
                            ("prism", "prisms"), ("pyramid", "pyramids"))
     #When the support is complete

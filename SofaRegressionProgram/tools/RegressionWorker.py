@@ -210,10 +210,12 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
 
     def _capture(task, result, stream_out  ):
 
+         # SOFA prints its warnings/deprecations on stderr: this is not a failure.
+         # Only a worker that did not report a result (hard crash) is an error,
+         # in which case its stderr is the best information available.
          stderr = result.get("stderr")
-         if  result['ok'] and stderr:
-             result['ok'] = False
-             result["error"] = stderr
+         if not result.get('ok') and stderr:
+             result["error"] = f"{result.get('error')}\n{stderr}"
 
          if stream_out is not None:
              start_steam_out_size = stream_out.tell()
