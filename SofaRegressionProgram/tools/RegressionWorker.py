@@ -210,23 +210,22 @@ def run_scene_tasks(tasks, nbr_jobs=1, format="JSON", on_result=None,
 
     def _capture(task, result, stream_out  ):
 
-         stderr = result.get("stderr")
-         if  result['ok'] and stderr:
-             result['ok'] = False
-             result["error"] = stderr
+        stderr = result.get("stderr")
+        if  result['ok'] and stderr:
+            result["error"] = stderr
 
-         if stream_out is not None:
-             start_steam_out_size = stream_out.tell()
+        if stream_out is not None:
+            start_steam_out_size = stream_out.tell()
 
-         verbose = task.get("verbose", 1)
-         if verbose == 2:
-             _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
-         if on_result is not None:
-             ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
-             on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
+        verbose = task.get("verbose", 1)
+        if verbose == 2:
+            _echo_captured_output( f"--- {task['mode']}: {task['scene_data'].file_scene_path}", result)
+        if on_result is not None:
+            ## could use task["id_scene"] instead of next(executed) here, but then the order would be wrong
+            on_result(task, result, log_prefix=f"({next(executed)}/{nbTasks})", err_log_stream = stream_out)
 
-         if stream_out is not None and (stream_out.tell() != start_steam_out_size):
-             print("", file=stream_out)
+        if stream_out is not None and (stream_out.tell() != start_steam_out_size):
+            print("", file=stream_out)
 
 
     stream_out = None
