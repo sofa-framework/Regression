@@ -592,7 +592,7 @@ class TopologyRegressionSceneData(RegressionSceneData):
 
     # Categories checked by the legacy CompareTopology visitor, in the order
     # they were written to the reference files.
-    topology_categories = (("edge", "edges"), ("edge", "triangles"), ("quad", "quads"),
+    topology_categories = (("edge", "edges"), ("triangle", "triangles"), ("quad", "quads"),
                            ("tetrahedron", "tetrahedra"), ("hexahedron", "hexahedra"),
                            ("prism", "prisms"), ("pyramid", "pyramids"))
     #When the support is complete
