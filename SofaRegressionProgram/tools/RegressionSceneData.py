@@ -403,7 +403,7 @@ class StateRegressionSceneData(RegressionSceneData):
 
                     # Compute total distance between the 2 sets
                     full_dist = np.linalg.norm(data_diff)
-                    error_by_dof = full_dist / np.sqrt(float(data_diff.size))
+                    error_by_dof = full_dist / float(data_diff.size)
 
                     helper.writeLog(
                         f"{step} | {self.meca_objs[meca_id].name.value} | "
