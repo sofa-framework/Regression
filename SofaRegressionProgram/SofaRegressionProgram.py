@@ -312,7 +312,7 @@ if __name__ == '__main__':
 
 
 
-    if ( reg_prog.nbr_error_in_sets() > 0) or reg_prog.nbr_parsing_error_in_sets()> 0:
+    if reg_prog.nbr_error_in_sets() > 0 or reg_prog.nbr_crash_in_sets() > 0 or reg_prog.nbr_parsing_error_in_sets() > 0:
         sys.exit(1) # exit with error(s)
 
     sys.exit(0) # exit without error
