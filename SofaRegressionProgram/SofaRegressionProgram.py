@@ -1,6 +1,7 @@
 import os
 import io
 import argparse
+import re
 import sys
 import numpy as np
 from pathlib import Path
@@ -148,6 +149,20 @@ class RegressionProgram:
         writeMessage (f"duration={duration_seconds:.3f}", buffer)
 
 
+def scene_filter(pattern):
+    """Compile the --filter pattern.
+
+    The pattern must be a valid regex: an invalid one (e.g. '*example*' instead of '.*example.*')
+    is reported as an argument error instead of crashing later while parsing the scene lists.
+    """
+    try:
+        return re.compile(pattern)
+    except re.error as regex_error:
+        raise argparse.ArgumentTypeError(f"'{pattern}' is not a valid regex ({regex_error}). "
+                                         f"Note that it is a regex, not a wildcard pattern: "
+                                         f"use '.*' instead of '*' (e.g., '.*demo.*').")
+
+
 def make_parser():
     """
     Parse input arguments
@@ -175,7 +190,7 @@ def make_parser():
     parser.add_argument('--filter',
                         dest='filter',
                         help="A regex filter to select scenes to test (e.g., '^demo.*.scn$')",
-                        type=str)
+                        type=scene_filter)
 
     parser.add_argument('-j', '--jobs',
                         dest='jobs',
